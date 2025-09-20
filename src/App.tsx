@@ -21,6 +21,11 @@ import QuickActions from './components/Admin/QuickActions';
 import SystemOverview from './components/Admin/SystemOverview';
 import MyClasses from './components/Teacher/MyClasses';
 import TeacherGradeManagement from './components/Teacher/GradeManagement';
+import MyCourses from './components/Teacher/MyCourses';
+import MySchedule from './components/Teacher/MySchedule';
+import TeacherAttendance from './components/Teacher/TeacherAttendance';
+import TeacherMessages from './components/Teacher/TeacherMessages';
+import TeacherReports from './components/Teacher/TeacherReports';
 import LoadingSpinner from './components/Common/LoadingSpinner';
 
 const MainApp: React.FC = () => {
@@ -90,6 +95,16 @@ const MainApp: React.FC = () => {
       switch (activeSection) {
         case 'classes':
           return <MyClasses />;
+        case 'courses':
+          return <MyCourses />;
+        case 'schedule':
+          return <MySchedule />;
+        case 'attendance':
+          return <TeacherAttendance />;
+        case 'messages':
+          return <TeacherMessages />;
+        case 'reports':
+          return <TeacherReports />;
         case 'grades':
           return <TeacherGradeManagement />;
       }
