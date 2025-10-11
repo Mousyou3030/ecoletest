@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Edit, Trash2, Users, BookOpen, Calendar, GraduationCap } from 'lucide-react';
+import { Plus, Search, CreditCard as Edit, Trash2, Users, BookOpen, Calendar, GraduationCap } from 'lucide-react';
 import { classService, userService } from '../../services/api';
 import { Class } from '../../types';
 
