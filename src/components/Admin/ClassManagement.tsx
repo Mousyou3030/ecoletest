@@ -53,21 +53,22 @@ const ClassManagement: React.FC = () => {
     cls.level.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const AddClassModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      React.useEffect(() => {
-        const loadTeachers = async () => {
-          try {
-            const response = await userService.getAll({ role: 'teacher' });
-            setTeachers(response.users || response);
-          } catch (error) {
-            console.error('Erreur lors du chargement des enseignants:', error);
-          }
-        };
-        loadTeachers();
-      }, []);
+  const AddClassModal = () => {
+    React.useEffect(() => {
+      const loadTeachers = async () => {
+        try {
+          const response = await userService.getAll({ role: 'teacher' });
+          setTeachers(response.users || response);
+        } catch (error) {
+          console.error('Erreur lors du chargement des enseignants:', error);
+        }
+      };
+      loadTeachers();
+    }, []);
 
-      <div className="bg-white rounded-lg p-6 w-full max-w-md">
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 w-full max-w-md">
         <h3 className="text-lg font-semibold mb-4">Ajouter une classe</h3>
         <form onSubmit={handleAddClass} className="space-y-4">
           <div>
@@ -153,9 +154,10 @@ const ClassManagement: React.FC = () => {
             </button>
           </div>
         </form>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const handleAddClass = async (e: React.FormEvent) => {
     e.preventDefault();
