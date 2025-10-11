@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Search, Edit, Trash2, BookOpen, Calendar, User, Clock } from 'lucide-react';
+import { courseService, userService, classService } from '../../services/api';
 import { Course } from '../../types';
 
 const CourseManagement: React.FC = () => {
@@ -7,6 +8,9 @@ const CourseManagement: React.FC = () => {
   const [selectedSubject, setSelectedSubject] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
 
+  const [loading, setLoading] = useState(false);
+  const [teachers, setTeachers] = useState<any[]>([]);
+  const [classes, setClasses] = useState<any[]>([]);
   // Mock data
   const [courses, setCourses] = useState<Course[]>([
     {
@@ -44,18 +48,6 @@ const CourseManagement: React.FC = () => {
     }
   ]);
 
-  const teachers = [
-    { id: '2', name: 'Jean Martin' },
-    { id: '3', name: 'Marie Dubois' },
-    { id: '4', name: 'Pierre Morel' }
-  ];
-
-  const classes = [
-    { id: '1', name: '6ème A' },
-    { id: '2', name: '6ème B' },
-    { id: '3', name: '3ème A' }
-  ];
-
   const subjects = ['Mathématiques', 'Français', 'Histoire', 'Géographie', 'Sciences', 'Anglais', 'Arts'];
 
   const filteredCourses = courses.filter(course => {
@@ -69,15 +61,24 @@ const CourseManagement: React.FC = () => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <h3 className="text-lg font-semibold mb-4">Créer un nouveau cours</h3>
-        <form className="space-y-4">
+        <form onSubmit={handleAddCourse} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Titre du cours</label>
-              <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+              <input 
+                name="title"
+                type="text" 
+                required
+                className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Matière</label>
-              <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
+              <select 
+                name="subject"
+                required
+                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+              >
                 <option value="">Sélectionner une matière</option>
                 {subjects.map(subject => (
                   <option key={subject} value={subject}>{subject}</option>
@@ -89,6 +90,7 @@ const CourseManagement: React.FC = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
             <textarea 
+              name="description"
               rows={3}
               className="w-full border border-gray-300 rounded-lg px-3 py-2"
               placeholder="Description du cours..."
@@ -98,16 +100,26 @@ const CourseManagement: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Enseignant</label>
-              <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
+              <select 
+                name="teacherId"
+                required
+                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+              >
                 <option value="">Sélectionner un enseignant</option>
                 {teachers.map(teacher => (
-                  <option key={teacher.id} value={teacher.id}>{teacher.name}</option>
+                  <option key={teacher.id} value={teacher.id}>
+                    {teacher.firstName} {teacher.lastName}
+                  </option>
                 ))}
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Classe</label>
-              <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
+              <select 
+                name="classId"
+                required
+                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+              >
                 <option value="">Sélectionner une classe</option>
                 {classes.map(cls => (
                   <option key={cls.id} value={cls.id}>{cls.name}</option>
@@ -119,17 +131,28 @@ const CourseManagement: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Date de début</label>
-              <input type="date" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+              <input 
+                name="startDate"
+                type="date" 
+                required
+                className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Date de fin</label>
-              <input type="date" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+              <input 
+                name="endDate"
+                type="date" 
+                required
+                className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+              />
             </div>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Matériel pédagogique</label>
             <textarea 
+              name="materials"
               rows={2}
               className="w-full border border-gray-300 rounded-lg px-3 py-2"
               placeholder="Liste du matériel nécessaire (un élément par ligne)"
@@ -146,15 +169,88 @@ const CourseManagement: React.FC = () => {
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              disabled={loading}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
-              Créer le cours
+              {loading ? 'Création...' : 'Créer le cours'}
             </button>
           </div>
         </form>
       </div>
     </div>
   );
+
+  const handleAddCourse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    try {
+      const formData = new FormData(e.target as HTMLFormElement);
+      const materialsText = formData.get('materials') as string;
+      const materials = materialsText ? materialsText.split('\n').filter(m => m.trim()) : [];
+      
+      const courseData = {
+        title: formData.get('title') as string,
+        description: formData.get('description') as string,
+        subject: formData.get('subject') as string,
+        teacherId: formData.get('teacherId') as string,
+        classId: formData.get('classId') as string,
+        startDate: formData.get('startDate') as string,
+        endDate: formData.get('endDate') as string,
+        materials
+      };
+
+      await courseService.create(courseData);
+      
+      // Refresh the courses list
+      const response = await courseService.getAll();
+      setCourses(response);
+      
+      setShowAddModal(false);
+      alert('Cours créé avec succès !');
+    } catch (error: any) {
+      console.error('Erreur lors de la création:', error);
+      alert(error.response?.data?.error || 'Erreur lors de la création du cours');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteCourse = async (courseId: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce cours ?')) {
+      return;
+    }
+
+    try {
+      await courseService.delete(courseId);
+      
+      // Refresh the courses list
+      const response = await courseService.getAll();
+      setCourses(response);
+      
+      alert('Cours supprimé avec succès !');
+    } catch (error: any) {
+      console.error('Erreur lors de la suppression:', error);
+      alert(error.response?.data?.error || 'Erreur lors de la suppression');
+    }
+  };
+
+  // Load teachers and classes on component mount
+  React.useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [teachersResponse, classesResponse] = await Promise.all([
+          userService.getAll({ role: 'teacher' }),
+          classService.getAll()
+        ]);
+        setTeachers(teachersResponse.users || teachersResponse);
+        setClasses(classesResponse);
+      } catch (error) {
+        console.error('Erreur lors du chargement des données:', error);
+      }
+    };
+    loadData();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -226,7 +322,9 @@ const CourseManagement: React.FC = () => {
                   <div className="flex items-center text-gray-600">
                     <User className="h-4 w-4 mr-2" />
                     <span>
-                      {teachers.find(t => t.id === course.teacherId)?.name || 'Non assigné'}
+                      {teachers.find(t => t.id === course.teacherId) ? 
+                        `${teachers.find(t => t.id === course.teacherId)?.firstName} ${teachers.find(t => t.id === course.teacherId)?.lastName}` : 
+                        'Non assigné'}
                     </span>
                   </div>
                   <div className="flex items-center text-gray-600">
@@ -263,7 +361,10 @@ const CourseManagement: React.FC = () => {
                   <Edit className="h-4 w-4" />
                 </button>
                 <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg">
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 
+                    className="h-4 w-4" 
+                    onClick={() => handleDeleteCourse(course.id)}
+                  />
                 </button>
               </div>
             </div>
@@ -292,7 +393,7 @@ const CourseManagement: React.FC = () => {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Enseignants Actifs</p>
               <p className="text-2xl font-bold text-gray-900">
-                {new Set(courses.map(c => c.teacherId)).size}
+                {teachers.length}
               </p>
             </div>
           </div>

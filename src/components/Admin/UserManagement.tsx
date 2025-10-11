@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Search, Edit, Trash2, Eye, Filter, UserPlus, Mail, Phone } from 'lucide-react';
+import { userService } from '../../services/api';
 import { User, UserRole } from '../../types';
 
 const UserManagement: React.FC = () => {
@@ -7,6 +8,7 @@ const UserManagement: React.FC = () => {
   const [selectedRole, setSelectedRole] = useState<UserRole | 'all'>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(false);
 
   // Mock data - in production, this would come from an API
   const [users, setUsers] = useState<User[]>([
@@ -74,33 +76,128 @@ const UserManagement: React.FC = () => {
     }
   };
 
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    try {
+      const formData = new FormData(e.target as HTMLFormElement);
+      const userData = {
+        firstName: formData.get('firstName') as string,
+        lastName: formData.get('lastName') as string,
+        email: formData.get('email') as string,
+        role: formData.get('role') as UserRole,
+        phone: formData.get('phone') as string,
+        address: formData.get('address') as string,
+        dateOfBirth: formData.get('dateOfBirth') as string
+      };
+
+      await userService.create(userData);
+      
+      // Refresh the users list
+      const response = await userService.getAll();
+      setUsers(response.users || response);
+      
+      setShowAddModal(false);
+      alert('Utilisateur créé avec succès !');
+    } catch (error: any) {
+      console.error('Erreur lors de la création:', error);
+      alert(error.response?.data?.error || 'Erreur lors de la création de l\'utilisateur');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')) {
+      return;
+    }
+
+    try {
+      await userService.delete(userId);
+      
+      // Refresh the users list
+      const response = await userService.getAll();
+      setUsers(response.users || response);
+      
+      alert('Utilisateur supprimé avec succès !');
+    } catch (error: any) {
+      console.error('Erreur lors de la suppression:', error);
+      alert(error.response?.data?.error || 'Erreur lors de la suppression');
+    }
+  };
+
   const AddUserModal = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 w-full max-w-md">
         <h3 className="text-lg font-semibold mb-4">Ajouter un utilisateur</h3>
-        <form className="space-y-4">
+        <form onSubmit={handleAddUser} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Prénom</label>
-              <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+              <input 
+                name="firstName"
+                type="text" 
+                required
+                className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Nom</label>
-              <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+              <input 
+                name="lastName"
+                type="text" 
+                required
+                className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+              />
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <input type="email" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+            <input 
+              name="email"
+              type="email" 
+              required
+              className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Rôle</label>
-            <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
+            <select 
+              name="role"
+              required
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+            >
+              <option value="">Sélectionner un rôle</option>
               <option value="student">Élève</option>
               <option value="teacher">Enseignant</option>
               <option value="parent">Parent</option>
               <option value="admin">Administrateur</option>
             </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
+            <input 
+              name="phone"
+              type="tel" 
+              className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
+            <textarea 
+              name="address"
+              rows={2}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+            ></textarea>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Date de naissance</label>
+            <input 
+              name="dateOfBirth"
+              type="date" 
+              className="w-full border border-gray-300 rounded-lg px-3 py-2" 
+            />
           </div>
           <div className="flex justify-end space-x-3 pt-4">
             <button
@@ -112,9 +209,10 @@ const UserManagement: React.FC = () => {
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              disabled={loading}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
-              Ajouter
+              {loading ? 'Création...' : 'Ajouter'}
             </button>
           </div>
         </form>
@@ -230,7 +328,10 @@ const UserManagement: React.FC = () => {
                         <Edit className="h-4 w-4" />
                       </button>
                       <button className="text-red-600 hover:text-red-900">
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 
+                          className="h-4 w-4" 
+                          onClick={() => handleDeleteUser(user.id)}
+                        />
                       </button>
                     </div>
                   </td>

@@ -152,6 +152,16 @@ export const courseService = {
   delete: async (id: string) => {
     const response = await api.delete(`/courses/${id}`);
     return response.data;
+  },
+
+  getTeachers: async () => {
+    const response = await api.get('/users?role=teacher');
+    return response.data;
+  },
+
+  getClasses: async () => {
+    const response = await api.get('/classes');
+    return response.data;
   }
 };
 
@@ -175,6 +185,11 @@ export const scheduleService = {
   delete: async (id: string) => {
     const response = await api.delete(`/schedules/${id}`);
     return response.data;
+  },
+
+  getTeachers: async () => {
+    const response = await api.get('/users?role=teacher');
+    return response.data;
   }
 };
 
@@ -197,6 +212,16 @@ export const gradeService = {
 
   delete: async (id: string) => {
     const response = await api.delete(`/grades/${id}`);
+    return response.data;
+  },
+
+  getStudents: async () => {
+    const response = await api.get('/users?role=student');
+    return response.data;
+  },
+
+  getCourses: async () => {
+    const response = await api.get('/courses');
     return response.data;
   }
 };
@@ -266,6 +291,11 @@ export const paymentService = {
 
   update: async (id: string, paymentData: any) => {
     const response = await api.put(`/payments/${id}`, paymentData);
+    return response.data;
+  },
+
+  getStudents: async () => {
+    const response = await api.get('/users?role=student');
     return response.data;
   }
 };
