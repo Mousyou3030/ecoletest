@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Bell, Search, Settings, LogOut, User, ChevronDown } from 'lucide-react';
+import { Bell, Search, Settings, LogOut, User, ChevronDown, Lock } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import ChangePasswordModal from '../Auth/ChangePasswordModal';
 
 const Header: React.FC = () => {
   const { user, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   const mockNotifications = [
     { id: '1', title: 'Nouveau message', message: 'Vous avez reçu un nouveau message de M. Martin', time: '5 min' },
@@ -94,6 +96,16 @@ const Header: React.FC = () => {
                     <User className="h-4 w-4 mr-3" />
                     Mon Profil
                   </button>
+                  <button
+                    onClick={() => {
+                      setShowPasswordModal(true);
+                      setShowUserMenu(false);
+                    }}
+                    className="w-full flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 transition-colors"
+                  >
+                    <Lock className="h-4 w-4 mr-3" />
+                    Changer le mot de passe
+                  </button>
                   <button className="w-full flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 transition-colors">
                     <Settings className="h-4 w-4 mr-3" />
                     Paramètres
@@ -112,6 +124,12 @@ const Header: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <ChangePasswordModal
+        isOpen={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+        userId={user?.id || ''}
+      />
     </header>
   );
 };

@@ -208,6 +208,59 @@ router.put('/:id', authenticateToken, [
   }
 });
 
+// Changer le mot de passe
+router.put('/:id/password', authenticateToken, [
+  body('currentPassword').isLength({ min: 1 }),
+  body('newPassword').isLength({ min: 8 })
+], async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { currentPassword, newPassword } = req.body;
+
+    // Vérifier les permissions
+    if (req.user.role !== 'admin' && req.user.id !== id) {
+      return res.status(403).json({ error: 'Accès non autorisé' });
+    }
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    // Récupérer l'utilisateur
+    const [users] = await pool.execute(
+      'SELECT id, password FROM users WHERE id = ?',
+      [id]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ error: 'Utilisateur non trouvé' });
+    }
+
+    const user = users[0];
+
+    // Vérifier le mot de passe actuel
+    const passwordMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!passwordMatch) {
+      return res.status(401).json({ error: 'Le mot de passe actuel est incorrect' });
+    }
+
+    // Hacher le nouveau mot de passe
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Mettre à jour le mot de passe
+    await pool.execute(
+      'UPDATE users SET password = ? WHERE id = ?',
+      [hashedPassword, id]
+    );
+
+    res.json({ message: 'Mot de passe changé avec succès' });
+  } catch (error) {
+    console.error('Erreur lors du changement de mot de passe:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 // Supprimer un utilisateur
 router.delete('/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
