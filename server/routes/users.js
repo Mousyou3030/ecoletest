@@ -1,5 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const { v4: uuidv4 } = require('uuid');
 const { body, validationResult } = require('express-validator');
 const { pool } = require('../config/database');
 const { authenticateToken, requireRole } = require('../middleware/auth');
@@ -115,16 +116,17 @@ router.post('/', authenticateToken, requireRole(['admin']), [
     // Mot de passe par défaut
     const defaultPassword = 'password123';
     const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+    const userId = uuidv4();
 
     const [result] = await pool.execute(
-      `INSERT INTO users (email, password, firstName, lastName, role, phone, address, dateOfBirth) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [email, hashedPassword, firstName, lastName, role, phone, address, dateOfBirth]
+      `INSERT INTO users (id, email, password, firstName, lastName, role, phone, address, dateOfBirth)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [userId, email, hashedPassword, firstName, lastName, role, phone, address, dateOfBirth]
     );
 
     res.status(201).json({
       message: 'Utilisateur créé avec succès',
-      userId: result.insertId,
+      userId,
       defaultPassword
     });
   } catch (error) {
