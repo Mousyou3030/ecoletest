@@ -300,4 +300,27 @@ export const paymentService = {
   }
 };
 
+// Services dashboard
+export const dashboardService = {
+  getAdminStats: async () => {
+    const response = await api.get('/dashboard/admin-stats');
+    return response.data;
+  },
+
+  getStudentDashboard: async (studentId: string) => {
+    const response = await api.get(`/dashboard/student/${studentId}`);
+    return response.data;
+  },
+
+  getTeacherDashboard: async (teacherId: string) => {
+    const response = await api.get(`/dashboard/teacher/${teacherId}`);
+    return response.data;
+  },
+
+  getParentDashboard: async (parentId: string) => {
+    const response = await api.get(`/dashboard/parent/${parentId}`);
+    return response.data;
+  }
+};
+
 export default api;

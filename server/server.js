@@ -14,6 +14,7 @@ const courseRoutes = require('./routes/courses');
 const scheduleRoutes = require('./routes/schedules');
 const paymentRoutes = require('./routes/payments');
 const gradeRoutes = require('./routes/grades');
+const dashboardRoutes = require('./routes/dashboard');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -38,6 +39,7 @@ app.use('/api/courses', courseRoutes);
 app.use('/api/schedules', scheduleRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/grades', gradeRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Route de test
 app.get('/api/health', (req, res) => {

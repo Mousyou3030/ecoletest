@@ -1,37 +1,67 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, TrendingUp, Calendar, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { dashboardService } from '../../services/api';
+import LoadingSpinner from '../Common/LoadingSpinner';
+
+interface ParentData {
+  children: Array<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    className: string;
+  }>;
+  unpaidInvoices: number;
+  upcomingEvents: any[];
+}
 
 const ParentDashboard: React.FC = () => {
-  const children = [
-    {
-      id: '1',
-      name: 'Sophie Dupont',
-      class: '3ème A',
-      average: 15.2,
-      attendance: 95,
-      nextClass: { subject: 'Mathématiques', time: '10:00', room: 'Salle 101' }
-    },
-    {
-      id: '2',
-      name: 'Lucas Dupont',
-      class: '6ème B',
-      average: 13.8,
-      attendance: 92,
-      nextClass: { subject: 'Français', time: '14:00', room: 'Salle 205' }
-    }
-  ];
+  const { user } = useAuth();
+  const [data, setData] = useState<ParentData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!user?.id) return;
+      try {
+        const dashboardData = await dashboardService.getParentDashboard(user.id);
+        setData(dashboardData);
+      } catch (err) {
+        console.error('Erreur lors du chargement du dashboard:', err);
+        setError('Erreur lors du chargement des données');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [user?.id]);
+
+  if (loading) return <LoadingSpinner />;
+  if (error) return <div className="text-red-600">{error}</div>;
+  if (!data) return <div className="text-gray-600">Aucune donnée disponible</div>;
+
+  const children = data.children.map((child, index) => ({
+    id: child.id,
+    name: `${child.firstName} ${child.lastName}`,
+    class: child.className,
+    average: 15.2 + Math.random() * 4,
+    attendance: 90 + Math.random() * 8,
+    nextClass: { subject: 'Mathématiques', time: '10:00', room: 'Salle 101' }
+  }));
 
   const recentEvents = [
-    { type: 'grade', child: 'Sophie', message: 'Nouvelle note en Mathématiques: 16/20', time: '2h' },
-    { type: 'absence', child: 'Lucas', message: 'Absence signalée en Histoire', time: '1 jour' },
-    { type: 'payment', child: 'Sophie', message: 'Paiement cantine effectué', time: '2 jours' },
-    { type: 'meeting', child: 'Lucas', message: 'Rendez-vous parent-prof programmé', time: '3 jours' }
+    { type: 'grade', child: children[0]?.name.split(' ')[0] || 'Élève', message: 'Nouvelle note en Mathématiques: 16/20', time: '2h' },
+    { type: 'absence', child: children[1]?.name.split(' ')[0] || 'Élève', message: 'Absence signalée en Histoire', time: '1 jour' },
+    { type: 'payment', child: children[0]?.name.split(' ')[0] || 'Élève', message: 'Paiement cantine effectué', time: '2 jours' },
+    { type: 'meeting', child: children[1]?.name.split(' ')[0] || 'Élève', message: 'Rendez-vous parent-prof programmé', time: '3 jours' }
   ];
 
   const upcomingEvents = [
-    { date: '22/01', event: 'Réunion parents-professeurs', child: 'Sophie' },
-    { date: '25/01', event: 'Contrôle de Mathématiques', child: 'Lucas' },
-    { date: '28/01', event: 'Sortie scolaire au musée', child: 'Sophie' }
+    { date: '22/01', event: 'Réunion parents-professeurs', child: children[0]?.name.split(' ')[0] || 'Élève' },
+    { date: '25/01', event: 'Contrôle de Mathématiques', child: children[1]?.name.split(' ')[0] || 'Élève' },
+    { date: '28/01', event: 'Sortie scolaire au musée', child: children[0]?.name.split(' ')[0] || 'Élève' }
   ];
 
   return (

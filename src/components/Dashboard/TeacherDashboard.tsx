@@ -1,33 +1,74 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, Users, BookOpen, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { dashboardService } from '../../services/api';
+import LoadingSpinner from '../Common/LoadingSpinner';
+
+interface TeacherData {
+  teacher: {
+    firstName: string;
+    lastName: string;
+  };
+  myClasses: number;
+  coursesThisWeek: number;
+  totalStudents: number;
+  attendanceRate: number;
+  todaySchedule: Array<{
+    time: string;
+    subject: string;
+    class: string;
+    room: string;
+  }>;
+  upcomingTasks: Array<{
+    task: string;
+    deadline: string;
+    priority: string;
+  }>;
+}
 
 const TeacherDashboard: React.FC = () => {
-  const todaySchedule = [
-    { time: '08:00', subject: 'Mathématiques', class: '6ème A', room: 'Salle 101' },
-    { time: '10:00', subject: 'Mathématiques', class: '6ème B', room: 'Salle 101' },
-    { time: '14:00', subject: 'Algèbre', class: '3ème A', room: 'Salle 203' },
-    { time: '16:00', subject: 'Géométrie', class: '3ème B', room: 'Salle 203' }
-  ];
+  const { user } = useAuth();
+  const [data, setData] = useState<TeacherData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const upcomingTasks = [
-    { task: 'Correction copies 6ème A', deadline: 'Demain', priority: 'high' },
-    { task: 'Préparation cours Algèbre', deadline: '2 jours', priority: 'medium' },
-    { task: 'Réunion parents d\'élèves', deadline: '3 jours', priority: 'high' },
-    { task: 'Notes trimestre à saisir', deadline: '1 semaine', priority: 'low' }
-  ];
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!user?.id) return;
+      try {
+        const dashboardData = await dashboardService.getTeacherDashboard(user.id);
+        setData(dashboardData);
+      } catch (err) {
+        console.error('Erreur lors du chargement du dashboard:', err);
+        setError('Erreur lors du chargement des données');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [user?.id]);
+
+  if (loading) return <LoadingSpinner />;
+  if (error) return <div className="text-red-600">{error}</div>;
+  if (!data) return <div className="text-gray-600">Aucune donnée disponible</div>;
+
+  const todaySchedule = data.todaySchedule;
+
+  const upcomingTasks = data.upcomingTasks;
 
   const stats = [
-    { title: 'Mes Classes', value: '5', icon: Users, color: 'blue' },
-    { title: 'Cours Cette Semaine', value: '18', icon: BookOpen, color: 'green' },
-    { title: 'Élèves Total', value: '142', icon: Users, color: 'purple' },
-    { title: 'Taux Présence', value: '92%', icon: CheckCircle, color: 'orange' }
+    { title: 'Mes Classes', value: data.myClasses.toString(), icon: Users, color: 'blue' },
+    { title: 'Cours Cette Semaine', value: data.coursesThisWeek.toString(), icon: BookOpen, color: 'green' },
+    { title: 'Élèves Total', value: data.totalStudents.toString(), icon: Users, color: 'purple' },
+    { title: 'Taux Présence', value: `${data.attendanceRate}%`, icon: CheckCircle, color: 'orange' }
   ];
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Tableau de Bord Enseignant</h1>
-        <p className="text-gray-600">Bonjour Prof. Martin, voici votre planning du jour</p>
+        <p className="text-gray-600">Bonjour Prof. {data.teacher.lastName}, voici votre planning du jour</p>
       </div>
 
       {/* Stats */}

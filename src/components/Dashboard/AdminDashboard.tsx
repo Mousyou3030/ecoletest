@@ -1,11 +1,66 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Users, BookOpen, Calendar, TrendingUp, AlertCircle, DollarSign } from 'lucide-react';
+import { dashboardService } from '../../services/api';
+import LoadingSpinner from '../Common/LoadingSpinner';
+
+interface DashboardData {
+  totalStudents: number;
+  totalTeachers: number;
+  totalClasses: number;
+  monthlyRevenue: number;
+  performanceMetrics: {
+    successRate: number;
+    attendanceRate: number;
+    parentSatisfaction: number;
+  };
+  recentActivity: Array<{
+    action: string;
+    user: string;
+    createdAt: string;
+    type: string;
+  }>;
+}
 
 const AdminDashboard: React.FC = () => {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const dashboardData = await dashboardService.getAdminStats();
+        setData(dashboardData);
+      } catch (err) {
+        console.error('Erreur lors du chargement du dashboard:', err);
+        setError('Erreur lors du chargement des données');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  if (loading) return <LoadingSpinner />;
+  if (error) return <div className="text-red-600">{error}</div>;
+  if (!data) return <div className="text-gray-600">Aucune donnée disponible</div>;
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = (now.getTime() - date.getTime()) / 1000;
+
+    if (diff < 60) return `${Math.floor(diff)} sec`;
+    if (diff < 3600) return `${Math.floor(diff / 60)} min`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} h`;
+    return `${Math.floor(diff / 86400)} j`;
+  };
+
   const stats = [
     {
       title: 'Total Élèves',
-      value: '1,247',
+      value: data.totalStudents.toLocaleString(),
       change: '+12%',
       changeType: 'positive' as const,
       icon: Users,
@@ -13,7 +68,7 @@ const AdminDashboard: React.FC = () => {
     },
     {
       title: 'Enseignants',
-      value: '87',
+      value: data.totalTeachers.toString(),
       change: '+3%',
       changeType: 'positive' as const,
       icon: BookOpen,
@@ -21,7 +76,7 @@ const AdminDashboard: React.FC = () => {
     },
     {
       title: 'Classes Actives',
-      value: '34',
+      value: data.totalClasses.toString(),
       change: '0%',
       changeType: 'neutral' as const,
       icon: Calendar,
@@ -29,7 +84,7 @@ const AdminDashboard: React.FC = () => {
     },
     {
       title: 'Revenus Mensuel',
-      value: '€45,230',
+      value: `€${data.monthlyRevenue.toLocaleString()}`,
       change: '+8%',
       changeType: 'positive' as const,
       icon: DollarSign,
@@ -37,13 +92,13 @@ const AdminDashboard: React.FC = () => {
     }
   ];
 
-  const recentActivity = [
-    { id: 1, action: 'Nouvelle inscription', user: 'Marie Dupont', time: '2 min', type: 'success' },
-    { id: 2, action: 'Absence signalée', user: 'Jean Martin', time: '15 min', type: 'warning' },
-    { id: 3, action: 'Paiement reçu', user: 'Sophie Bernard', time: '1 h', type: 'success' },
-    { id: 4, action: 'Cours annulé', user: 'Prof. Dubois', time: '2 h', type: 'error' },
-    { id: 5, action: 'Note ajoutée', user: 'Prof. Morel', time: '3 h', type: 'info' }
-  ];
+  const recentActivity = data.recentActivity.map((activity, index) => ({
+    id: index + 1,
+    action: activity.action,
+    user: activity.user,
+    time: formatTime(activity.createdAt),
+    type: activity.type
+  }));
 
   const getColorClasses = (color: string) => {
     switch (color) {
@@ -102,26 +157,26 @@ const AdminDashboard: React.FC = () => {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">Taux de Réussite</span>
-              <span className="text-sm font-semibold text-gray-900">92.5%</span>
+              <span className="text-sm font-semibold text-gray-900">{data.performanceMetrics.successRate}%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-green-500 h-2 rounded-full" style={{ width: '92.5%' }}></div>
+              <div className="bg-green-500 h-2 rounded-full" style={{ width: `${data.performanceMetrics.successRate}%` }}></div>
             </div>
-            
+
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">Taux de Présence</span>
-              <span className="text-sm font-semibold text-gray-900">88.3%</span>
+              <span className="text-sm font-semibold text-gray-900">{data.performanceMetrics.attendanceRate}%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-blue-500 h-2 rounded-full" style={{ width: '88.3%' }}></div>
+              <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${data.performanceMetrics.attendanceRate}%` }}></div>
             </div>
-            
+
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">Satisfaction Parents</span>
-              <span className="text-sm font-semibold text-gray-900">94.1%</span>
+              <span className="text-sm font-semibold text-gray-900">{data.performanceMetrics.parentSatisfaction}%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-purple-500 h-2 rounded-full" style={{ width: '94.1%' }}></div>
+              <div className="bg-purple-500 h-2 rounded-full" style={{ width: `${data.performanceMetrics.parentSatisfaction}%` }}></div>
             </div>
           </div>
         </div>

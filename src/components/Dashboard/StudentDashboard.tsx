@@ -1,33 +1,89 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BookOpen, Calendar, TrendingUp, Clock, Star, Award } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { dashboardService } from '../../services/api';
+import LoadingSpinner from '../Common/LoadingSpinner';
+
+interface StudentData {
+  student: {
+    firstName: string;
+    lastName: string;
+  };
+  averageGrade: number;
+  attendance: number;
+  completedAssignments: number;
+  classRank: number;
+  nextClasses: Array<{
+    startTime: string;
+    subject: string;
+    teacher: string;
+    room: string;
+  }>;
+  recentGrades: Array<{
+    subject: string;
+    grade: number;
+    max: number;
+    date: string;
+  }>;
+  assignments: Array<{
+    subject: string;
+    title: string;
+    due: string;
+    urgent: boolean;
+  }>;
+}
 
 const StudentDashboard: React.FC = () => {
-  const nextClasses = [
-    { time: '10:00', subject: 'Mathématiques', teacher: 'M. Martin', room: 'Salle 101' },
-    { time: '14:00', subject: 'Histoire', teacher: 'Mme Dubois', room: 'Salle 205' },
-    { time: '16:00', subject: 'Anglais', teacher: 'M. Smith', room: 'Salle 301' }
-  ];
+  const { user } = useAuth();
+  const [data, setData] = useState<StudentData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const recentGrades = [
-    { subject: 'Mathématiques', grade: 16, max: 20, date: '15/01' },
-    { subject: 'Français', grade: 14, max: 20, date: '14/01' },
-    { subject: 'Histoire', grade: 18, max: 20, date: '12/01' },
-    { subject: 'Anglais', grade: 15, max: 20, date: '10/01' }
-  ];
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!user?.id) return;
+      try {
+        const dashboardData = await dashboardService.getStudentDashboard(user.id);
+        setData(dashboardData);
+      } catch (err) {
+        console.error('Erreur lors du chargement du dashboard:', err);
+        setError('Erreur lors du chargement des données');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const assignments = [
-    { subject: 'Mathématiques', title: 'Exercices Algèbre', due: 'Demain', urgent: true },
-    { subject: 'Français', title: 'Dissertation', due: '2 jours', urgent: false },
-    { subject: 'Histoire', title: 'Recherches WWI', due: '5 jours', urgent: false }
-  ];
+    fetchData();
+  }, [user?.id]);
 
-  const averageGrade = recentGrades.reduce((acc, grade) => acc + grade.grade, 0) / recentGrades.length;
+  if (loading) return <LoadingSpinner />;
+  if (error) return <div className="text-red-600">{error}</div>;
+  if (!data) return <div className="text-gray-600">Aucune donnée disponible</div>;
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+  };
+
+  const nextClasses = data.nextClasses.map(cls => ({
+    time: new Date(cls.startTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+    subject: cls.subject,
+    teacher: cls.teacher,
+    room: cls.room
+  }));
+
+  const recentGrades = data.recentGrades.map(grade => ({
+    ...grade,
+    date: formatDate(grade.date)
+  }));
+
+  const assignments = data.assignments;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Tableau de Bord Élève</h1>
-        <p className="text-gray-600">Bonjour Sophie, voici ton résumé de la journée</p>
+        <p className="text-gray-600">Bonjour {data.student.firstName}, voici ton résumé de la journée</p>
       </div>
 
       {/* Overview Cards */}
@@ -37,37 +93,37 @@ const StudentDashboard: React.FC = () => {
             <TrendingUp className="h-8 w-8 mr-3" />
             <div>
               <p className="text-blue-100">Moyenne Générale</p>
-              <p className="text-2xl font-bold">{averageGrade.toFixed(1)}/20</p>
+              <p className="text-2xl font-bold">{data.averageGrade}/20</p>
             </div>
           </div>
         </div>
-        
+
         <div className="bg-gradient-to-r from-green-500 to-green-600 p-6 rounded-lg text-white">
           <div className="flex items-center">
             <Calendar className="h-8 w-8 mr-3" />
             <div>
               <p className="text-green-100">Présences</p>
-              <p className="text-2xl font-bold">96%</p>
+              <p className="text-2xl font-bold">{data.attendance}%</p>
             </div>
           </div>
         </div>
-        
+
         <div className="bg-gradient-to-r from-purple-500 to-purple-600 p-6 rounded-lg text-white">
           <div className="flex items-center">
             <BookOpen className="h-8 w-8 mr-3" />
             <div>
               <p className="text-purple-100">Devoirs Remis</p>
-              <p className="text-2xl font-bold">12/15</p>
+              <p className="text-2xl font-bold">{data.completedAssignments}/15</p>
             </div>
           </div>
         </div>
-        
+
         <div className="bg-gradient-to-r from-orange-500 to-orange-600 p-6 rounded-lg text-white">
           <div className="flex items-center">
             <Award className="h-8 w-8 mr-3" />
             <div>
               <p className="text-orange-100">Rang Classe</p>
-              <p className="text-2xl font-bold">3ème</p>
+              <p className="text-2xl font-bold">{data.classRank}ème</p>
             </div>
           </div>
         </div>
