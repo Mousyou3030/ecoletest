@@ -15,25 +15,40 @@ router.get('/admin-stats', authenticateToken, async (req, res) => {
     );
 
     const classCount = await pool.execute(
-      'SELECT COUNT(*) as count FROM classes WHERE isActive = TRUE'
+      'SELECT COUNT(*) as count FROM classes'
     );
 
-    const recentActivity = await pool.execute(
-      `SELECT
-        CASE
-          WHEN type = 'enrollment' THEN 'Nouvelle inscription'
-          WHEN type = 'absence' THEN 'Absence signalée'
-          WHEN type = 'payment' THEN 'Paiement reçu'
-          WHEN type = 'grade' THEN 'Note ajoutée'
-          ELSE 'Activité'
-        END as action,
-        CONCAT(firstName, ' ', lastName) as user,
-        createdAt,
-        type
-       FROM activities
-       ORDER BY createdAt DESC
-       LIMIT 5`
+    const recentGrades = await pool.execute(
+      `SELECT CONCAT(u.firstName, ' ', u.lastName) as user, g.createdAt
+       FROM grades g
+       JOIN users u ON g.studentId = u.id
+       ORDER BY g.createdAt DESC
+       LIMIT 2`
     );
+
+    const recentPayments = await pool.execute(
+      `SELECT CONCAT(u.firstName, ' ', u.lastName) as user, p.paidDate as createdAt
+       FROM payments p
+       JOIN users u ON p.studentId = u.id
+       WHERE p.status = 'paid'
+       ORDER BY p.paidDate DESC
+       LIMIT 2`
+    );
+
+    const recentAbsences = await pool.execute(
+      `SELECT CONCAT(u.firstName, ' ', u.lastName) as user, a.createdAt
+       FROM attendances a
+       JOIN users u ON a.studentId = u.id
+       WHERE a.status = 'absent'
+       ORDER BY a.createdAt DESC
+       LIMIT 1`
+    );
+
+    const recentActivity = [];
+    recentGrades[0].forEach(item => recentActivity.push({ action: 'Note ajoutée', user: item.user, createdAt: item.createdAt, type: 'info' }));
+    recentPayments[0].forEach(item => recentActivity.push({ action: 'Paiement reçu', user: item.user, createdAt: item.createdAt, type: 'success' }));
+    recentAbsences[0].forEach(item => recentActivity.push({ action: 'Absence signalée', user: item.user, createdAt: item.createdAt, type: 'warning' }));
+    recentActivity.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     res.json({
       totalStudents: studentCount[0][0]?.count || 0,
@@ -45,7 +60,7 @@ router.get('/admin-stats', authenticateToken, async (req, res) => {
         attendanceRate: 88.3,
         parentSatisfaction: 94.1
       },
-      recentActivity: recentActivity[0] || []
+      recentActivity: recentActivity.slice(0, 5)
     });
   } catch (error) {
     console.error('Erreur lors de la récupération des stats admin:', error);
@@ -73,12 +88,13 @@ router.get('/student/:studentId', authenticateToken, async (req, res) => {
         CONCAT(u.firstName, ' ', u.lastName) as teacher,
         s.room
        FROM schedules s
-       JOIN courses c ON s.courseId = c.id
+       JOIN courses c ON s.classId = c.classId
        JOIN users u ON c.teacherId = u.id
        WHERE s.classId IN (
-         SELECT classId FROM class_students WHERE studentId = ?
+         SELECT classId FROM student_classes WHERE studentId = ?
        )
-       AND s.startTime > NOW()
+       AND s.day = DAYNAME(CURRENT_DATE)
+       AND s.startTime > CURRENT_TIME
        ORDER BY s.startTime
        LIMIT 3`,
       [studentId]
@@ -86,9 +102,9 @@ router.get('/student/:studentId', authenticateToken, async (req, res) => {
 
     const recentGrades = await pool.execute(
       `SELECT
-        c.name as subject,
-        g.score as grade,
-        g.maxScore as max,
+        c.subject as subject,
+        g.value as grade,
+        g.maxValue as max,
         g.createdAt as date
        FROM grades g
        JOIN courses c ON g.courseId = c.id
@@ -104,19 +120,17 @@ router.get('/student/:studentId', authenticateToken, async (req, res) => {
         a.title,
         a.dueDate as due,
         IF(a.dueDate <= DATE_ADD(NOW(), INTERVAL 1 DAY), true, false) as urgent
-       FROM assignments a
-       JOIN courses c ON a.courseId = c.id
-       WHERE a.classId IN (
-         SELECT classId FROM class_students WHERE studentId = ?
-       )
-       AND a.dueDate > NOW()
-       ORDER BY a.dueDate
+       FROM grades g
+       JOIN courses c ON g.courseId = c.id
+       WHERE g.studentId = ?
+       AND g.date >= DATE_SUB(CURRENT_DATE, INTERVAL 7 DAY)
+       ORDER BY g.date DESC
        LIMIT 3`,
       [studentId]
     );
 
     const averageGrade = recentGrades[0].length > 0
-      ? (recentGrades[0].reduce((acc, g) => acc + g.grade, 0) / recentGrades[0].length).toFixed(1)
+      ? (recentGrades[0].reduce((acc, g) => acc + parseFloat(g.grade), 0) / recentGrades[0].length).toFixed(1)
       : 0;
 
     res.json({
@@ -155,20 +169,16 @@ router.get('/teacher/:teacherId', authenticateToken, async (req, res) => {
 
     const coursesThisWeek = await pool.execute(
       `SELECT COUNT(*) as count FROM schedules
-       WHERE courseId IN (SELECT id FROM courses WHERE teacherId = ?)
-       AND startTime BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 7 DAY)`,
+       WHERE teacherId = ?
+       AND isActive = TRUE`,
       [teacherId]
     );
 
     const totalStudents = await pool.execute(
-      `SELECT COUNT(DISTINCT cs.studentId) as count
-       FROM class_students cs
-       WHERE cs.classId IN (
-         SELECT id FROM classes WHERE id IN (
-           SELECT classId FROM course_classes WHERE courseId IN (
-             SELECT id FROM courses WHERE teacherId = ?
-           )
-         )
+      `SELECT COUNT(DISTINCT sc.studentId) as count
+       FROM student_classes sc
+       WHERE sc.classId IN (
+         SELECT DISTINCT classId FROM courses WHERE teacherId = ?
        )`,
       [teacherId]
     );
@@ -176,30 +186,18 @@ router.get('/teacher/:teacherId', authenticateToken, async (req, res) => {
     const todaySchedule = await pool.execute(
       `SELECT
         s.startTime as time,
-        c.name as subject,
+        s.subject,
         cl.name as class,
         s.room
        FROM schedules s
-       JOIN courses c ON s.courseId = c.id
        JOIN classes cl ON s.classId = cl.id
-       WHERE c.teacherId = ?
-       AND DATE(s.startTime) = DATE(NOW())
+       WHERE s.teacherId = ?
+       AND s.day = DAYNAME(CURRENT_DATE)
        ORDER BY s.startTime`,
       [teacherId]
     );
 
-    const upcomingTasks = await pool.execute(
-      `SELECT
-        title as task,
-        dueDate as deadline,
-        priority
-       FROM tasks
-       WHERE teacherId = ?
-       AND dueDate > NOW()
-       ORDER BY dueDate
-       LIMIT 4`,
-      [teacherId]
-    );
+    const upcomingTasks = [];
 
     res.json({
       teacher: teacher[0][0],
@@ -208,7 +206,7 @@ router.get('/teacher/:teacherId', authenticateToken, async (req, res) => {
       totalStudents: totalStudents[0][0]?.count || 0,
       attendanceRate: 92,
       todaySchedule: todaySchedule[0] || [],
-      upcomingTasks: upcomingTasks[0] || []
+      upcomingTasks: upcomingTasks
     });
   } catch (error) {
     console.error('Erreur lors de la récupération du dashboard enseignant:', error);
@@ -223,9 +221,10 @@ router.get('/parent/:parentId', authenticateToken, async (req, res) => {
     const children = await pool.execute(
       `SELECT u.id, u.firstName, u.lastName, c.name as className
        FROM users u
-       JOIN class_students cs ON u.id = cs.studentId
-       JOIN classes c ON cs.classId = c.id
-       WHERE u.parentId = ? AND u.isActive = TRUE`,
+       JOIN parent_children pc ON u.id = pc.childId
+       JOIN student_classes sc ON u.id = sc.studentId
+       JOIN classes c ON sc.classId = c.id
+       WHERE pc.parentId = ? AND u.isActive = TRUE`,
       [parentId]
     );
 
