@@ -96,7 +96,7 @@ CREATE TABLE IF NOT EXISTS grades (
     studentId VARCHAR(36) NOT NULL,
     courseId VARCHAR(36) NOT NULL,
     teacherId VARCHAR(36) NOT NULL,
-    value DECIMAL(4,2) NOT NULL,
+    `value` DECIMAL(4,2) NOT NULL,
     maxValue DECIMAL(4,2) NOT NULL DEFAULT 20.00,
     type ENUM('exam', 'homework', 'participation', 'project') NOT NULL,
     date DATE NOT NULL,
