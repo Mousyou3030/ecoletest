@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Search, CreditCard as Edit, Trash2, Eye, Filter, UserPlus, Mail, Phone } from 'lucide-react';
 import { userService } from '../../services/api';
 import { User, UserRole } from '../../types';
@@ -9,46 +9,27 @@ const UserManagement: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
 
-  // Mock data - in production, this would come from an API
-  const [users, setUsers] = useState<User[]>([
-    {
-      id: '1',
-      email: 'marie.dubois@school.edu',
-      firstName: 'Marie',
-      lastName: 'Dubois',
-      role: 'admin',
-      createdAt: new Date('2024-01-15'),
-      avatar: 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150'
-    },
-    {
-      id: '2',
-      email: 'jean.martin@school.edu',
-      firstName: 'Jean',
-      lastName: 'Martin',
-      role: 'teacher',
-      createdAt: new Date('2024-01-10'),
-      avatar: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150'
-    },
-    {
-      id: '3',
-      email: 'sophie.dupont@school.edu',
-      firstName: 'Sophie',
-      lastName: 'Dupont',
-      role: 'student',
-      createdAt: new Date('2024-01-08'),
-      avatar: 'https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=150'
-    },
-    {
-      id: '4',
-      email: 'pierre.dupont@school.edu',
-      firstName: 'Pierre',
-      lastName: 'Dupont',
-      role: 'parent',
-      createdAt: new Date('2024-01-05'),
-      avatar: 'https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=150'
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const response = await userService.getAll();
+      const usersData = response.users || response;
+      setUsers(usersData.map((user: any) => ({
+        ...user,
+        createdAt: new Date(user.createdAt)
+      })));
+    } catch (error) {
+      console.error('Erreur lors de la récupération des utilisateurs:', error);
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = `${user.firstName} ${user.lastName} ${user.email}`.toLowerCase().includes(searchTerm.toLowerCase());
@@ -93,11 +74,10 @@ const UserManagement: React.FC = () => {
       };
 
       await userService.create(userData);
-      
+
       // Refresh the users list
-      const response = await userService.getAll();
-      setUsers(response.users || response);
-      
+      await fetchUsers();
+
       setShowAddModal(false);
       alert('Utilisateur créé avec succès !');
     } catch (error: any) {
@@ -115,11 +95,10 @@ const UserManagement: React.FC = () => {
 
     try {
       await userService.delete(userId);
-      
+
       // Refresh the users list
-      const response = await userService.getAll();
-      setUsers(response.users || response);
-      
+      await fetchUsers();
+
       alert('Utilisateur supprimé avec succès !');
     } catch (error: any) {
       console.error('Erreur lors de la suppression:', error);
