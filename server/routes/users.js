@@ -10,8 +10,8 @@ const router = express.Router();
 // Obtenir tous les utilisateurs (admin seulement)
 router.get('/', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
-    const { role, search, page = 1, limit = 10 } = req.query;
-    
+    const { role, search, page, limit } = req.query;
+
     let query = 'SELECT id, email, firstName, lastName, role, phone, address, dateOfBirth, isActive, createdAt FROM users WHERE 1=1';
     let params = [];
 
@@ -25,8 +25,15 @@ router.get('/', authenticateToken, requireRole(['admin']), async (req, res) => {
       params.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
 
-    query += ' ORDER BY createdAt DESC LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), (parseInt(page) - 1) * parseInt(limit));
+    query += ' ORDER BY createdAt DESC';
+
+    // Only add pagination if both page and limit are provided
+    if (page && limit) {
+      const pageNum = parseInt(page) || 1;
+      const limitNum = parseInt(limit) || 10;
+      query += ' LIMIT ? OFFSET ?';
+      params.push(limitNum, (pageNum - 1) * limitNum);
+    }
 
     const [users] = await pool.execute(query, params);
 
