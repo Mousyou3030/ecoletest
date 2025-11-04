@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Search, CreditCard as Edit, Trash2, BookOpen, Calendar, User, Clock } from 'lucide-react';
-import { courseService, userService, classService } from '../../services/api';
+import { supabaseCourseService, supabaseUserService, supabaseClassService } from '../../services/supabase';
 import { Course } from '../../types';
 
 const CourseManagement: React.FC = () => {
@@ -11,42 +11,7 @@ const CourseManagement: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
-  // Mock data
-  const [courses, setCourses] = useState<Course[]>([
-    {
-      id: '1',
-      title: 'Mathématiques - Algèbre',
-      description: 'Introduction aux équations du premier degré',
-      teacherId: '2',
-      classId: '1',
-      subject: 'Mathématiques',
-      startDate: new Date('2024-01-15'),
-      endDate: new Date('2024-06-15'),
-      materials: ['Manuel page 45-60', 'Exercices en ligne']
-    },
-    {
-      id: '2',
-      title: 'Histoire - Moyen Âge',
-      description: 'La société féodale au Moyen Âge',
-      teacherId: '3',
-      classId: '1',
-      subject: 'Histoire',
-      startDate: new Date('2024-01-10'),
-      endDate: new Date('2024-03-10'),
-      materials: ['Livre d\'histoire chapitre 3', 'Documentaire vidéo']
-    },
-    {
-      id: '3',
-      title: 'Français - Grammaire',
-      description: 'Les classes grammaticales',
-      teacherId: '4',
-      classId: '2',
-      subject: 'Français',
-      startDate: new Date('2024-01-20'),
-      endDate: new Date('2024-04-20'),
-      materials: ['Manuel de grammaire', 'Exercices interactifs']
-    }
-  ]);
+  const [courses, setCourses] = useState<Course[]>([]);
 
   const subjects = ['Mathématiques', 'Français', 'Histoire', 'Géographie', 'Sciences', 'Anglais', 'Arts'];
 
@@ -200,11 +165,10 @@ const CourseManagement: React.FC = () => {
         materials
       };
 
-      await courseService.create(courseData);
-      
+      await supabaseCourseService.create(courseData);
+
       // Refresh the courses list
-      const response = await courseService.getAll();
-      setCourses(response);
+      await fetchCourses();
       
       setShowAddModal(false);
       alert('Cours créé avec succès !');
@@ -222,11 +186,10 @@ const CourseManagement: React.FC = () => {
     }
 
     try {
-      await courseService.delete(courseId);
-      
+      await supabaseCourseService.delete(courseId);
+
       // Refresh the courses list
-      const response = await courseService.getAll();
-      setCourses(response);
+      await fetchCourses();
       
       alert('Cours supprimé avec succès !');
     } catch (error: any) {
@@ -235,21 +198,34 @@ const CourseManagement: React.FC = () => {
     }
   };
 
-  // Load teachers and classes on component mount
-  React.useEffect(() => {
+  const fetchCourses = async () => {
+    try {
+      setLoading(true);
+      const coursesData = await supabaseCourseService.getAll();
+      setCourses(coursesData);
+    } catch (error) {
+      console.error('Erreur lors du chargement des cours:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load teachers, classes, and courses on component mount
+  useEffect(() => {
     const loadData = async () => {
       try {
         const [teachersResponse, classesResponse] = await Promise.all([
-          userService.getAll({ role: 'teacher' }),
-          classService.getAll()
+          supabaseUserService.getAll({ role: 'teacher' }),
+          supabaseClassService.getAll()
         ]);
-        setTeachers(teachersResponse.users || teachersResponse);
+        setTeachers(teachersResponse);
         setClasses(classesResponse);
       } catch (error) {
         console.error('Erreur lors du chargement des données:', error);
       }
     };
     loadData();
+    fetchCourses();
   }, []);
 
   return (
@@ -300,7 +276,16 @@ const CourseManagement: React.FC = () => {
 
       {/* Courses List */}
       <div className="space-y-4">
-        {filteredCourses.map((course) => (
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="text-gray-500">Chargement des cours...</div>
+          </div>
+        ) : filteredCourses.length === 0 ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="text-gray-500">Aucun cours trouvé</div>
+          </div>
+        ) : (
+          filteredCourses.map((course) => (
           <div key={course.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div className="flex items-start justify-between">
               <div className="flex-1">
@@ -369,7 +354,8 @@ const CourseManagement: React.FC = () => {
               </div>
             </div>
           </div>
-        ))}
+          ))
+        )}
       </div>
 
       {/* Stats */}
