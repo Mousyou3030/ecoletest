@@ -7,6 +7,8 @@ const UserManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole | 'all'>('all');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
@@ -88,6 +90,47 @@ const UserManagement: React.FC = () => {
     }
   };
 
+  const handleViewUser = (user: User) => {
+    setSelectedUser(user);
+    setShowViewModal(true);
+  };
+
+  const handleEditUser = (user: User) => {
+    setSelectedUser(user);
+    setShowEditModal(true);
+  };
+
+  const handleUpdateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+
+    setLoading(true);
+    try {
+      const formData = new FormData(e.target as HTMLFormElement);
+      const userData = {
+        firstName: formData.get('firstName') as string,
+        lastName: formData.get('lastName') as string,
+        email: formData.get('email') as string,
+        role: formData.get('role') as UserRole,
+        phone: formData.get('phone') as string,
+        address: formData.get('address') as string,
+        dateOfBirth: formData.get('dateOfBirth') as string
+      };
+
+      await userService.update(selectedUser.id, userData);
+      await fetchUsers();
+
+      setShowEditModal(false);
+      setSelectedUser(null);
+      alert('Utilisateur modifié avec succès !');
+    } catch (error: any) {
+      console.error('Erreur lors de la modification:', error);
+      alert(error.response?.data?.error || 'Erreur lors de la modification');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDeleteUser = async (userId: string) => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')) {
       return;
@@ -95,10 +138,7 @@ const UserManagement: React.FC = () => {
 
     try {
       await userService.delete(userId);
-
-      // Refresh the users list
       await fetchUsers();
-
       alert('Utilisateur supprimé avec succès !');
     } catch (error: any) {
       console.error('Erreur lors de la suppression:', error);
@@ -300,17 +340,26 @@ const UserManagement: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
-                      <button className="text-blue-600 hover:text-blue-900">
+                      <button
+                        onClick={() => handleViewUser(user)}
+                        className="text-blue-600 hover:text-blue-900"
+                        title="Voir les détails"
+                      >
                         <Eye className="h-4 w-4" />
                       </button>
-                      <button className="text-green-600 hover:text-green-900">
+                      <button
+                        onClick={() => handleEditUser(user)}
+                        className="text-green-600 hover:text-green-900"
+                        title="Modifier"
+                      >
                         <Edit className="h-4 w-4" />
                       </button>
-                      <button className="text-red-600 hover:text-red-900">
-                        <Trash2 
-                          className="h-4 w-4" 
-                          onClick={() => handleDeleteUser(user.id)}
-                        />
+                      <button
+                        onClick={() => handleDeleteUser(user.id)}
+                        className="text-red-600 hover:text-red-900"
+                        title="Supprimer"
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   </td>
@@ -378,6 +427,170 @@ const UserManagement: React.FC = () => {
       </div>
 
       {showAddModal && <AddUserModal />}
+      {showViewModal && selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">Détails de l'utilisateur</h3>
+            <div className="space-y-3">
+              <div className="flex items-center justify-center mb-4">
+                <img
+                  className="h-20 w-20 rounded-full object-cover"
+                  src={selectedUser.avatar || `https://ui-avatars.com/api/?name=${selectedUser.firstName}+${selectedUser.lastName}&background=3B82F6&color=fff`}
+                  alt=""
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Nom complet</label>
+                <p className="mt-1 text-sm text-gray-900">{selectedUser.firstName} {selectedUser.lastName}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Email</label>
+                <p className="mt-1 text-sm text-gray-900">{selectedUser.email}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Rôle</label>
+                <span className={`inline-flex mt-1 px-2 py-1 text-xs font-semibold rounded-full ${getRoleBadgeColor(selectedUser.role)}`}>
+                  {getRoleLabel(selectedUser.role)}
+                </span>
+              </div>
+              {selectedUser.phone && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Téléphone</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedUser.phone}</p>
+                </div>
+              )}
+              {selectedUser.address && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Adresse</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedUser.address}</p>
+                </div>
+              )}
+              {selectedUser.dateOfBirth && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Date de naissance</label>
+                  <p className="mt-1 text-sm text-gray-900">{new Date(selectedUser.dateOfBirth).toLocaleDateString('fr-FR')}</p>
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Date d'inscription</label>
+                <p className="mt-1 text-sm text-gray-900">{selectedUser.createdAt.toLocaleDateString('fr-FR')}</p>
+              </div>
+            </div>
+            <div className="flex justify-end mt-6">
+              <button
+                onClick={() => {
+                  setShowViewModal(false);
+                  setSelectedUser(null);
+                }}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showEditModal && selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">Modifier l'utilisateur</h3>
+            <form onSubmit={handleUpdateUser} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Prénom</label>
+                  <input
+                    name="firstName"
+                    type="text"
+                    required
+                    defaultValue={selectedUser.firstName}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nom</label>
+                  <input
+                    name="lastName"
+                    type="text"
+                    required
+                    defaultValue={selectedUser.lastName}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input
+                  name="email"
+                  type="email"
+                  required
+                  defaultValue={selectedUser.email}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Rôle</label>
+                <select
+                  name="role"
+                  required
+                  defaultValue={selectedUser.role}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                >
+                  <option value="student">Élève</option>
+                  <option value="teacher">Enseignant</option>
+                  <option value="parent">Parent</option>
+                  <option value="admin">Administrateur</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
+                <input
+                  name="phone"
+                  type="tel"
+                  defaultValue={selectedUser.phone || ''}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
+                <textarea
+                  name="address"
+                  rows={2}
+                  defaultValue={selectedUser.address || ''}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                ></textarea>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date de naissance</label>
+                <input
+                  name="dateOfBirth"
+                  type="date"
+                  defaultValue={selectedUser.dateOfBirth ? new Date(selectedUser.dateOfBirth).toISOString().split('T')[0] : ''}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                />
+              </div>
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setSelectedUser(null);
+                  }}
+                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {loading ? 'Modification...' : 'Modifier'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
