@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Search, CreditCard as Edit, Trash2, Users, BookOpen, Calendar, GraduationCap } from 'lucide-react';
 import { classService, userService } from '../../services/api';
 import { Class } from '../../types';
@@ -6,47 +6,34 @@ import { Class } from '../../types';
 const ClassManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
-
-  // Mock data
   const [loading, setLoading] = useState(false);
   const [teachers, setTeachers] = useState<any[]>([]);
-  const [classes, setClasses] = useState<Class[]>([
-    {
-      id: '1',
-      name: '6ème A',
-      level: '6ème',
-      teacherId: '2',
-      studentIds: ['3', '4', '5'],
-      schedule: [
-        {
-          id: '1',
-          day: 'Lundi',
-          startTime: '08:00',
-          endTime: '09:00',
-          subject: 'Mathématiques',
-          teacherId: '2',
-          classId: '1',
-          room: 'Salle 101'
-        }
-      ]
-    },
-    {
-      id: '2',
-      name: '6ème B',
-      level: '6ème',
-      teacherId: '2',
-      studentIds: ['6', '7', '8'],
-      schedule: []
-    },
-    {
-      id: '3',
-      name: '3ème A',
-      level: '3ème',
-      teacherId: '3',
-      studentIds: ['9', '10', '11'],
-      schedule: []
+  const [classes, setClasses] = useState<Class[]>([]);
+
+  useEffect(() => {
+    fetchClasses();
+    fetchTeachers();
+  }, []);
+
+  const fetchClasses = async () => {
+    try {
+      const response = await classService.getAll();
+      setClasses(response);
+    } catch (error) {
+      console.error('Erreur lors de la récupération des classes:', error);
     }
-  ]);
+  };
+
+  const fetchTeachers = async () => {
+    try {
+      const response = await userService.getAll();
+      const usersData = response.users || response;
+      const teachersList = usersData.filter((user: any) => user.role === 'teacher');
+      setTeachers(teachersList);
+    } catch (error) {
+      console.error('Erreur lors de la récupération des enseignants:', error);
+    }
+  };
 
   const filteredClasses = classes.filter(cls =>
     cls.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -54,18 +41,6 @@ const ClassManagement: React.FC = () => {
   );
 
   const AddClassModal = () => {
-    React.useEffect(() => {
-      const loadTeachers = async () => {
-        try {
-          const response = await userService.getAll({ role: 'teacher' });
-          setTeachers(response.users || response);
-        } catch (error) {
-          console.error('Erreur lors du chargement des enseignants:', error);
-        }
-      };
-      loadTeachers();
-    }, []);
-
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg p-6 w-full max-w-md">
@@ -174,10 +149,9 @@ const ClassManagement: React.FC = () => {
       };
 
       await classService.create(classData);
-      
+
       // Refresh the classes list
-      const response = await classService.getAll();
-      setClasses(response);
+      await fetchClasses();
       
       setShowAddModal(false);
       alert('Classe créée avec succès !');
@@ -196,10 +170,9 @@ const ClassManagement: React.FC = () => {
 
     try {
       await classService.delete(classId);
-      
+
       // Refresh the classes list
-      const response = await classService.getAll();
-      setClasses(response);
+      await fetchClasses();
       
       alert('Classe supprimée avec succès !');
     } catch (error: any) {
@@ -207,19 +180,6 @@ const ClassManagement: React.FC = () => {
       alert(error.response?.data?.error || 'Erreur lors de la suppression');
     }
   };
-
-  // Load teachers on component mount
-  React.useEffect(() => {
-    const loadTeachers = async () => {
-      try {
-        const response = await userService.getAll({ role: 'teacher' });
-        setTeachers(response.users || response);
-      } catch (error) {
-        console.error('Erreur lors du chargement des enseignants:', error);
-      }
-    };
-    loadTeachers();
-  }, []);
 
   return (
     <div className="space-y-6">
@@ -285,7 +245,7 @@ const ClassManagement: React.FC = () => {
                   Élèves
                 </div>
                 <span className="text-sm font-medium text-gray-900">
-                  {cls.studentIds.length}
+                  {cls.studentIds?.length || cls.studentCount || 0}
                 </span>
               </div>
               
@@ -307,7 +267,7 @@ const ClassManagement: React.FC = () => {
                   Cours programmés
                 </div>
                 <span className="text-sm font-medium text-gray-900">
-                  {cls.schedule.length}
+                  {cls.schedule?.length || 0}
                 </span>
               </div>
             </div>
@@ -347,7 +307,7 @@ const ClassManagement: React.FC = () => {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Élèves</p>
               <p className="text-2xl font-bold text-gray-900">
-                {classes.reduce((acc, cls) => acc + cls.studentIds.length, 0)}
+                {classes.reduce((acc, cls) => acc + (cls.studentIds?.length || cls.studentCount || 0), 0)}
               </p>
             </div>
           </div>
@@ -360,7 +320,7 @@ const ClassManagement: React.FC = () => {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Moyenne par classe</p>
               <p className="text-2xl font-bold text-gray-900">
-                {Math.round(classes.reduce((acc, cls) => acc + cls.studentIds.length, 0) / classes.length)}
+                {classes.length > 0 ? Math.round(classes.reduce((acc, cls) => acc + (cls.studentIds?.length || cls.studentCount || 0), 0) / classes.length) : 0}
               </p>
             </div>
           </div>
@@ -373,7 +333,7 @@ const ClassManagement: React.FC = () => {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Cours programmés</p>
               <p className="text-2xl font-bold text-gray-900">
-                {classes.reduce((acc, cls) => acc + cls.schedule.length, 0)}
+                {classes.reduce((acc, cls) => acc + (cls.schedule?.length || 0), 0)}
               </p>
             </div>
           </div>
