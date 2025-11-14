@@ -11,6 +11,7 @@ const ScheduleManagement: React.FC = () => {
   const [classes, setClasses] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   const days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
 
@@ -33,10 +34,24 @@ const ScheduleManagement: React.FC = () => {
           userService.getAll({ role: 'teacher' }),
           classService.getAll()
         ]);
-        setTeachers(teachersResponse.data || teachersResponse);
-        setClasses(classesResponse.data || classesResponse);
+
+        // Handle different response formats
+        const teachersData = Array.isArray(teachersResponse) ? teachersResponse :
+                           (teachersResponse.data && Array.isArray(teachersResponse.data) ? teachersResponse.data : []);
+        const classesData = Array.isArray(classesResponse) ? classesResponse :
+                          (classesResponse.data && Array.isArray(classesResponse.data) ? classesResponse.data : []);
+
+        console.log('Teachers loaded:', teachersData);
+        console.log('Classes loaded:', classesData);
+
+        setTeachers(teachersData);
+        setClasses(classesData);
+        setDataLoaded(true);
       } catch (error) {
         console.error('Erreur lors du chargement des données:', error);
+        setTeachers([]);
+        setClasses([]);
+        setDataLoaded(true);
       }
     };
     loadData();
