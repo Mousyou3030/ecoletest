@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { authService } from '../services/api';
+import { supabase } from '../services/supabase';
 import { User, UserRole } from '../types';
 
 interface AuthContextType {
@@ -27,16 +27,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-
   useEffect(() => {
     const initAuth = async () => {
-      const token = localStorage.getItem('token');
-      if (token) {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
         try {
-          const response = await authService.verify();
-          setUser(response.user);
+          setUser(JSON.parse(storedUser));
         } catch (error) {
-          localStorage.removeItem('token');
+          console.error('Error parsing stored user:', error);
           localStorage.removeItem('user');
         }
       }
@@ -48,16 +46,42 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string): Promise<void> => {
     setIsLoading(true);
-    
+
     try {
-      const response = await authService.login(email, password);
-      const { token, user: userData } = response;
-      
-      localStorage.setItem('token', token);
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Supabase error:', error);
+        throw new Error('Erreur de connexion à la base de données');
+      }
+
+      if (!data) {
+        throw new Error('Email ou mot de passe incorrect');
+      }
+
+      const userData: User = {
+        id: data.id,
+        email: data.email,
+        firstName: data.first_name,
+        lastName: data.last_name,
+        role: data.role as UserRole,
+        avatar: data.avatar,
+        phone: data.phone,
+        address: data.address,
+        dateOfBirth: data.date_of_birth ? new Date(data.date_of_birth) : undefined,
+        isActive: data.is_active
+      };
+
       localStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Erreur de connexion');
+      console.error('Login error:', error);
+      throw new Error(error.message || 'Erreur de connexion');
     } finally {
       setIsLoading(false);
     }
@@ -65,7 +89,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('token');
     localStorage.removeItem('user');
   };
 
