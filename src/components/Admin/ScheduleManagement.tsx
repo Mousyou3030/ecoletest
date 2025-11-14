@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, Edit, Trash2, Calendar, Clock, Users, BookOpen, Filter } from 'lucide-react';
-import { supabaseScheduleService, supabaseUserService, supabaseClassService } from '../../services/supabase';
+import { scheduleService, userService, classService } from '../../services/api';
 import { Schedule } from '../../types';
 
 const ScheduleManagement: React.FC = () => {
@@ -17,8 +17,8 @@ const ScheduleManagement: React.FC = () => {
   const fetchSchedules = async () => {
     try {
       setLoading(true);
-      const schedulesData = await supabaseScheduleService.getAll();
-      setSchedules(schedulesData);
+      const response = await scheduleService.getAll();
+      setSchedules(response.data || response);
     } catch (error) {
       console.error('Erreur lors du chargement des emplois du temps:', error);
     } finally {
@@ -29,12 +29,12 @@ const ScheduleManagement: React.FC = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [teachersData, classesData] = await Promise.all([
-          supabaseUserService.getAll({ role: 'teacher' }),
-          supabaseClassService.getAll()
+        const [teachersResponse, classesResponse] = await Promise.all([
+          userService.getAll({ role: 'teacher' }),
+          classService.getAll()
         ]);
-        setTeachers(teachersData);
-        setClasses(classesData);
+        setTeachers(teachersResponse.data || teachersResponse);
+        setClasses(classesResponse.data || classesResponse);
       } catch (error) {
         console.error('Erreur lors du chargement des données:', error);
       }
@@ -65,13 +65,13 @@ const ScheduleManagement: React.FC = () => {
         room: formData.get('room') as string
       };
 
-      await supabaseScheduleService.create(scheduleData);
+      await scheduleService.create(scheduleData);
       await fetchSchedules();
       setShowAddModal(false);
       alert('Emploi du temps créé avec succès !');
     } catch (error: any) {
       console.error('Erreur lors de la création:', error);
-      alert(error.message || 'Erreur lors de la création');
+      alert(error.response?.data?.message || 'Erreur lors de la création');
     } finally {
       setLoading(false);
     }
@@ -83,12 +83,12 @@ const ScheduleManagement: React.FC = () => {
     }
 
     try {
-      await supabaseScheduleService.delete(scheduleId);
+      await scheduleService.delete(scheduleId);
       await fetchSchedules();
       alert('Créneau supprimé avec succès !');
     } catch (error: any) {
       console.error('Erreur lors de la suppression:', error);
-      alert(error.message || 'Erreur lors de la suppression');
+      alert(error.response?.data?.message || 'Erreur lors de la suppression');
     }
   };
 
@@ -257,12 +257,14 @@ const ScheduleManagement: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {schedule.teacher ? `${schedule.teacher.first_name} ${schedule.teacher.last_name}` : 'Non assigné'}
+                      {teachers.find(t => t.id === schedule.teacherId) ?
+                        `${teachers.find(t => t.id === schedule.teacherId)?.firstName} ${teachers.find(t => t.id === schedule.teacherId)?.lastName}` :
+                        'Non assigné'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <Users className="h-4 w-4 text-gray-400 mr-2" />
-                        <span className="text-sm text-gray-900">{schedule.class?.name || 'Non assignée'}</span>
+                        <span className="text-sm text-gray-900">{classes.find(c => c.id === schedule.classId)?.name || 'Non assignée'}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
