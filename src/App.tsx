@@ -59,8 +59,7 @@ const MainApp: React.FC = () => {
           return <div>Rôle non reconnu</div>;
       }
     }
-    
-    // Admin sections
+
     if (user.role === 'admin') {
       switch (activeSection) {
         case 'users':
@@ -89,8 +88,7 @@ const MainApp: React.FC = () => {
           return <SystemOverview />;
       }
     }
-    
-    // Teacher sections
+
     if (user.role === 'teacher') {
       switch (activeSection) {
         case 'classes':
@@ -109,8 +107,7 @@ const MainApp: React.FC = () => {
           return <TeacherGradeManagement />;
       }
     }
-    
-    // Placeholder for other sections
+
     return (
       <div className="bg-white p-8 rounded-lg shadow-sm border border-gray-200">
         <h2 className="text-2xl font-bold text-gray-900 mb-4 capitalize">
@@ -152,8 +149,8 @@ const MainApp: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="flex h-screen">
-        <Sidebar 
-          userRole={user.role} 
+        <Sidebar
+          userRole={user.role}
           activeSection={activeSection}
           onSectionChange={setActiveSection}
         />
