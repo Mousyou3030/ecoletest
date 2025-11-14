@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '../services/supabase';
-import { User, UserRole } from '../types';
+import { authService } from '../services/api';
+import { User } from '../types';
 
 interface AuthContextType {
   user: User | null;
@@ -30,12 +30,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const initAuth = async () => {
       const storedUser = localStorage.getItem('user');
-      if (storedUser) {
+      const token = localStorage.getItem('token');
+
+      if (storedUser && token) {
         try {
           setUser(JSON.parse(storedUser));
         } catch (error) {
           console.error('Error parsing stored user:', error);
           localStorage.removeItem('user');
+          localStorage.removeItem('token');
         }
       }
       setIsLoading(false);
@@ -48,40 +51,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', email)
-        .eq('is_active', true)
-        .maybeSingle();
+      const response = await authService.login(email, password);
 
-      if (error) {
-        console.error('Supabase error:', error);
-        throw new Error('Erreur de connexion à la base de données');
-      }
-
-      if (!data) {
-        throw new Error('Email ou mot de passe incorrect');
+      if (response.token) {
+        localStorage.setItem('token', response.token);
       }
 
       const userData: User = {
-        id: data.id,
-        email: data.email,
-        firstName: data.first_name,
-        lastName: data.last_name,
-        role: data.role as UserRole,
-        avatar: data.avatar,
-        phone: data.phone,
-        address: data.address,
-        dateOfBirth: data.date_of_birth ? new Date(data.date_of_birth) : undefined,
-        isActive: data.is_active
+        id: response.user.id,
+        email: response.user.email,
+        firstName: response.user.firstName,
+        lastName: response.user.lastName,
+        role: response.user.role,
+        avatar: response.user.avatar,
+        phone: response.user.phone,
+        address: response.user.address,
+        dateOfBirth: response.user.dateOfBirth ? new Date(response.user.dateOfBirth) : undefined,
+        isActive: response.user.isActive
       };
 
       localStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
     } catch (error: any) {
       console.error('Login error:', error);
-      throw new Error(error.message || 'Erreur de connexion');
+      throw new Error(error.response?.data?.message || 'Erreur de connexion');
     } finally {
       setIsLoading(false);
     }
@@ -90,6 +83,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = () => {
     setUser(null);
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
   };
 
   return (
