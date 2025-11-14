@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, CreditCard as Edit, Trash2, BookOpen, Calendar, User, Clock } from 'lucide-react';
-import { supabaseCourseService, supabaseUserService, supabaseClassService } from '../../services/supabase';
+import { courseService, userService, classService } from '../../services/api';
 import { Course } from '../../types';
 
 const CourseManagement: React.FC = () => {
@@ -165,16 +165,16 @@ const CourseManagement: React.FC = () => {
         materials
       };
 
-      await supabaseCourseService.create(courseData);
+      await courseService.create(courseData);
 
       // Refresh the courses list
       await fetchCourses();
-      
+
       setShowAddModal(false);
       alert('Cours créé avec succès !');
     } catch (error: any) {
       console.error('Erreur lors de la création:', error);
-      alert(error.response?.data?.error || 'Erreur lors de la création du cours');
+      alert(error.response?.data?.message || 'Erreur lors de la création du cours');
     } finally {
       setLoading(false);
     }
@@ -186,23 +186,23 @@ const CourseManagement: React.FC = () => {
     }
 
     try {
-      await supabaseCourseService.delete(courseId);
+      await courseService.delete(courseId);
 
       // Refresh the courses list
       await fetchCourses();
-      
+
       alert('Cours supprimé avec succès !');
     } catch (error: any) {
       console.error('Erreur lors de la suppression:', error);
-      alert(error.response?.data?.error || 'Erreur lors de la suppression');
+      alert(error.response?.data?.message || 'Erreur lors de la suppression');
     }
   };
 
   const fetchCourses = async () => {
     try {
       setLoading(true);
-      const coursesData = await supabaseCourseService.getAll();
-      setCourses(coursesData);
+      const response = await courseService.getAll();
+      setCourses(response.data || response);
     } catch (error) {
       console.error('Erreur lors du chargement des cours:', error);
     } finally {
@@ -215,11 +215,11 @@ const CourseManagement: React.FC = () => {
     const loadData = async () => {
       try {
         const [teachersResponse, classesResponse] = await Promise.all([
-          supabaseUserService.getAll({ role: 'teacher' }),
-          supabaseClassService.getAll()
+          userService.getAll({ role: 'teacher' }),
+          classService.getAll()
         ]);
-        setTeachers(teachersResponse);
-        setClasses(classesResponse);
+        setTeachers(teachersResponse.data || teachersResponse);
+        setClasses(classesResponse.data || classesResponse);
       } catch (error) {
         console.error('Erreur lors du chargement des données:', error);
       }
