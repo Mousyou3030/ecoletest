@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Search, Edit, Trash2, TrendingUp, Calendar, Filter, Download, Eye, Users } from 'lucide-react';
 import { Grade } from '../../types';
+import { supabaseGradeService, supabaseUserService, supabaseCourseService, supabaseClassService } from '../../services/supabase';
 
 const GradeManagement: React.FC = () => {
   const [selectedClass, setSelectedClass] = useState('all');
@@ -8,85 +9,55 @@ const GradeManagement: React.FC = () => {
   const [selectedType, setSelectedType] = useState<'all' | 'exam' | 'homework' | 'participation' | 'project'>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data
-  const classes = [
-    { id: '1', name: '6ème A' },
-    { id: '2', name: '6ème B' },
-    { id: '3', name: '3ème A' },
-    { id: '4', name: '3ème B' }
-  ];
+  const [classes, setClasses] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
+  const [courses, setCourses] = useState<any[]>([]);
+  const [grades, setGrades] = useState<any[]>([]);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  const [bulkClassId, setBulkClassId] = useState('');
+  const [bulkCourseId, setBulkCourseId] = useState('');
+  const [bulkType, setBulkType] = useState<'exam' | 'homework' | 'participation' | 'project'>('exam');
+  const [bulkMaxValue, setBulkMaxValue] = useState(20);
+  const [bulkDate, setBulkDate] = useState(new Date().toISOString().split('T')[0]);
+  const [studentGrades, setStudentGrades] = useState<{ [key: string]: string }>({});
 
   const subjects = ['Mathématiques', 'Français', 'Histoire', 'Géographie', 'Sciences', 'Anglais', 'Arts'];
 
-  const students = [
-    { id: '1', name: 'Sophie Dupont', class: '6ème A' },
-    { id: '2', name: 'Lucas Martin', class: '6ème A' },
-    { id: '3', name: 'Emma Bernard', class: '6ème B' },
-    { id: '4', name: 'Thomas Dubois', class: '3ème A' }
-  ];
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    setCurrentUser(user);
+    loadAllData();
+  }, []);
 
-  const teachers = [
-    { id: '2', name: 'Jean Martin', subject: 'Mathématiques' },
-    { id: '3', name: 'Marie Dubois', subject: 'Français' },
-    { id: '4', name: 'Pierre Morel', subject: 'Histoire' }
-  ];
+  const loadAllData = async () => {
+    try {
+      setLoading(true);
+      const [gradesData, studentsData, coursesData, classesData] = await Promise.all([
+        supabaseGradeService.getAll(),
+        supabaseUserService.getAll({ role: 'student' }),
+        supabaseCourseService.getAll(),
+        supabaseClassService.getAll()
+      ]);
 
-  const [grades, setGrades] = useState<Grade[]>([
-    {
-      id: '1',
-      studentId: '1',
-      courseId: '1',
-      teacherId: '2',
-      value: 16,
-      maxValue: 20,
-      type: 'exam',
-      date: new Date('2024-01-15'),
-      comments: 'Très bon travail'
-    },
-    {
-      id: '2',
-      studentId: '2',
-      courseId: '1',
-      teacherId: '2',
-      value: 12,
-      maxValue: 20,
-      type: 'homework',
-      date: new Date('2024-01-14'),
-      comments: 'Peut mieux faire'
-    },
-    {
-      id: '3',
-      studentId: '3',
-      courseId: '2',
-      teacherId: '3',
-      value: 18,
-      maxValue: 20,
-      type: 'exam',
-      date: new Date('2024-01-15'),
-      comments: 'Excellent'
-    },
-    {
-      id: '4',
-      studentId: '4',
-      courseId: '3',
-      teacherId: '4',
-      value: 14,
-      maxValue: 20,
-      type: 'participation',
-      date: new Date('2024-01-13'),
-      comments: 'Bonne participation'
+      setGrades(gradesData);
+      setStudents(studentsData);
+      setCourses(coursesData);
+      setClasses(classesData);
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
 
   const filteredGrades = grades.filter(grade => {
-    const student = students.find(s => s.id === grade.studentId);
-    const teacher = teachers.find(t => t.id === grade.teacherId);
-    
-    const matchesClass = selectedClass === 'all' || student?.class === classes.find(c => c.id === selectedClass)?.name;
-    const matchesSubject = selectedSubject === 'all' || teacher?.subject === selectedSubject;
+    const matchesClass = selectedClass === 'all' || grade.course?.class?.id === selectedClass;
+    const matchesSubject = selectedSubject === 'all' || grade.course?.subject === selectedSubject;
     const matchesType = selectedType === 'all' || grade.type === selectedType;
-    
+
     return matchesClass && matchesSubject && matchesType;
   });
 
@@ -120,9 +91,9 @@ const GradeManagement: React.FC = () => {
 
   const calculateStats = () => {
     const totalGrades = filteredGrades.length;
-    const averageGrade = totalGrades > 0 ? 
+    const averageGrade = totalGrades > 0 ?
       (filteredGrades.reduce((acc, grade) => acc + (grade.value / grade.maxValue) * 20, 0) / totalGrades).toFixed(1) : 0;
-    const passRate = totalGrades > 0 ? 
+    const passRate = totalGrades > 0 ?
       Math.round((filteredGrades.filter(g => (g.value / g.maxValue) >= 0.5).length / totalGrades) * 100) : 0;
     const studentsEvaluated = new Set(filteredGrades.map(g => g.studentId)).size;
 
@@ -131,170 +102,382 @@ const GradeManagement: React.FC = () => {
 
   const stats = calculateStats();
 
-  const AddGradeModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md">
-        <h3 className="text-lg font-semibold mb-4">Ajouter une note</h3>
-        <form className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Élève</label>
-            <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
-              <option value="">Sélectionner un élève</option>
-              {students.map(student => (
-                <option key={student.id} value={student.id}>{student.name} - {student.class}</option>
-              ))}
-            </select>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Matière</label>
-            <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
-              <option value="">Sélectionner une matière</option>
-              {subjects.map(subject => (
-                <option key={subject} value={subject}>{subject}</option>
-              ))}
-            </select>
-          </div>
+  const handleDeleteGrade = async (gradeId: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette note ?')) return;
 
-          <div className="grid grid-cols-2 gap-4">
+    try {
+      await supabaseGradeService.delete(gradeId);
+      await loadAllData();
+    } catch (error) {
+      console.error('Error deleting grade:', error);
+      alert('Erreur lors de la suppression de la note');
+    }
+  };
+
+  const AddGradeModal = () => {
+    const [formData, setFormData] = useState({
+      studentId: '',
+      courseId: '',
+      value: '',
+      maxValue: '20',
+      type: 'exam' as 'exam' | 'homework' | 'participation' | 'project',
+      date: new Date().toISOString().split('T')[0],
+      comments: ''
+    });
+
+    const handleSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+
+      if (!formData.studentId || !formData.courseId || !formData.value) {
+        alert('Veuillez remplir tous les champs obligatoires');
+        return;
+      }
+
+      try {
+        const course = courses.find(c => c.id === formData.courseId);
+        await supabaseGradeService.create({
+          studentId: formData.studentId,
+          courseId: formData.courseId,
+          teacherId: course?.teacherId || currentUser.id,
+          value: parseFloat(formData.value),
+          maxValue: parseFloat(formData.maxValue),
+          type: formData.type,
+          date: formData.date,
+          comments: formData.comments
+        });
+
+        setShowAddModal(false);
+        await loadAllData();
+      } catch (error) {
+        console.error('Error creating grade:', error);
+        alert('Erreur lors de la création de la note');
+      }
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <h3 className="text-lg font-semibold mb-4">Ajouter une note</h3>
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Note</label>
-              <input type="number" min="0" max="20" step="0.5" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Sur</label>
-              <input type="number" min="1" max="20" defaultValue="20" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Type d'évaluation</label>
-            <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
-              <option value="exam">Contrôle</option>
-              <option value="homework">Devoir</option>
-              <option value="participation">Participation</option>
-              <option value="project">Projet</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-            <input type="date" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Commentaires</label>
-            <textarea 
-              rows={3}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2"
-              placeholder="Commentaires sur la performance..."
-            ></textarea>
-          </div>
-
-          <div className="flex justify-end space-x-3 pt-4">
-            <button
-              type="button"
-              onClick={() => setShowAddModal(false)}
-              className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Ajouter la note
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-
-  const BulkGradeModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-2xl">
-        <h3 className="text-lg font-semibold mb-4">Saisie de notes en lot</h3>
-        <form className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Classe</label>
-              <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
-                <option value="">Sélectionner une classe</option>
-                {classes.map(cls => (
-                  <option key={cls.id} value={cls.id}>{cls.name}</option>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Élève</label>
+              <select
+                value={formData.studentId}
+                onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                required
+              >
+                <option value="">Sélectionner un élève</option>
+                {students.map(student => (
+                  <option key={student.id} value={student.id}>
+                    {student.firstName} {student.lastName}
+                  </option>
                 ))}
               </select>
             </div>
+
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Matière</label>
-              <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
-                <option value="">Sélectionner une matière</option>
-                {subjects.map(subject => (
-                  <option key={subject} value={subject}>{subject}</option>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Cours</label>
+              <select
+                value={formData.courseId}
+                onChange={(e) => setFormData({ ...formData, courseId: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                required
+              >
+                <option value="">Sélectionner un cours</option>
+                {courses.map(course => (
+                  <option key={course.id} value={course.id}>
+                    {course.title} - {course.subject} ({course.class?.name})
+                  </option>
                 ))}
               </select>
             </div>
-          </div>
 
-          <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Note</label>
+                <input
+                  type="number"
+                  min="0"
+                  max={formData.maxValue}
+                  step="0.5"
+                  value={formData.value}
+                  onChange={(e) => setFormData({ ...formData, value: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Sur</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="20"
+                  value={formData.maxValue}
+                  onChange={(e) => setFormData({ ...formData, maxValue: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  required
+                />
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Type d'évaluation</label>
-              <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
+              <select
+                value={formData.type}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+              >
                 <option value="exam">Contrôle</option>
                 <option value="homework">Devoir</option>
                 <option value="participation">Participation</option>
                 <option value="project">Projet</option>
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Note sur</label>
-              <input type="number" min="1" max="20" defaultValue="20" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
-            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-              <input type="date" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+              <input
+                type="date"
+                value={formData.date}
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                required
+              />
             </div>
-          </div>
 
-          <div className="border rounded-lg p-4 max-h-60 overflow-y-auto">
-            <h4 className="font-medium mb-3">Notes par élève :</h4>
-            <div className="space-y-2">
-              {students.slice(0, 4).map((student) => (
-                <div key={student.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                  <span className="text-sm font-medium">{student.name}</span>
-                  <input 
-                    type="number" 
-                    min="0" 
-                    max="20" 
-                    step="0.5" 
-                    placeholder="Note"
-                    className="w-20 border border-gray-300 rounded px-2 py-1 text-sm"
-                  />
-                </div>
-              ))}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Commentaires</label>
+              <textarea
+                rows={3}
+                value={formData.comments}
+                onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                placeholder="Commentaires sur la performance..."
+              ></textarea>
             </div>
-          </div>
 
-          <div className="flex justify-end space-x-3 pt-4">
-            <button
-              type="button"
-              onClick={() => setShowBulkModal(false)}
-              className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Enregistrer les notes
-            </button>
-          </div>
-        </form>
+            <div className="flex justify-end space-x-3 pt-4">
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Ajouter la note
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
+
+  const BulkGradeModal = () => {
+    const filteredStudents = bulkClassId
+      ? students.filter(student => {
+          const course = courses.find(c => c.id === bulkCourseId);
+          return course?.classId === bulkClassId;
+        })
+      : [];
+
+    const handleSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+
+      if (!bulkClassId || !bulkCourseId) {
+        alert('Veuillez sélectionner une classe et un cours');
+        return;
+      }
+
+      const gradesToCreate = Object.entries(studentGrades)
+        .filter(([_, value]) => value && value.trim() !== '')
+        .map(([studentId, value]) => ({
+          studentId,
+          courseId: bulkCourseId,
+          teacherId: currentUser.id,
+          value: parseFloat(value),
+          maxValue: bulkMaxValue,
+          type: bulkType,
+          date: bulkDate,
+          comments: ''
+        }));
+
+      if (gradesToCreate.length === 0) {
+        alert('Veuillez saisir au moins une note');
+        return;
+      }
+
+      try {
+        for (const gradeData of gradesToCreate) {
+          await supabaseGradeService.create(gradeData);
+        }
+
+        setShowBulkModal(false);
+        setBulkClassId('');
+        setBulkCourseId('');
+        setStudentGrades({});
+        await loadAllData();
+      } catch (error) {
+        console.error('Error creating bulk grades:', error);
+        alert('Erreur lors de la création des notes');
+      }
+    };
+
+    const availableCourses = bulkClassId
+      ? courses.filter(c => c.classId === bulkClassId)
+      : [];
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <h3 className="text-lg font-semibold mb-4">Saisie de notes en lot</h3>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Classe</label>
+                <select
+                  value={bulkClassId}
+                  onChange={(e) => {
+                    setBulkClassId(e.target.value);
+                    setBulkCourseId('');
+                    setStudentGrades({});
+                  }}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  required
+                >
+                  <option value="">Sélectionner une classe</option>
+                  {classes.map(cls => (
+                    <option key={cls.id} value={cls.id}>{cls.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cours</label>
+                <select
+                  value={bulkCourseId}
+                  onChange={(e) => setBulkCourseId(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  disabled={!bulkClassId}
+                  required
+                >
+                  <option value="">Sélectionner un cours</option>
+                  {availableCourses.map(course => (
+                    <option key={course.id} value={course.id}>
+                      {course.title} - {course.subject}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Type d'évaluation</label>
+                <select
+                  value={bulkType}
+                  onChange={(e) => setBulkType(e.target.value as any)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                >
+                  <option value="exam">Contrôle</option>
+                  <option value="homework">Devoir</option>
+                  <option value="participation">Participation</option>
+                  <option value="project">Projet</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Note sur</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="20"
+                  value={bulkMaxValue}
+                  onChange={(e) => setBulkMaxValue(parseInt(e.target.value))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                <input
+                  type="date"
+                  value={bulkDate}
+                  onChange={(e) => setBulkDate(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                />
+              </div>
+            </div>
+
+            {bulkClassId && bulkCourseId && filteredStudents.length > 0 && (
+              <div className="border rounded-lg p-4 max-h-60 overflow-y-auto">
+                <h4 className="font-medium mb-3">Notes par élève :</h4>
+                <div className="space-y-2">
+                  {filteredStudents.map((student) => (
+                    <div key={student.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                      <span className="text-sm font-medium">
+                        {student.firstName} {student.lastName}
+                      </span>
+                      <input
+                        type="number"
+                        min="0"
+                        max={bulkMaxValue}
+                        step="0.5"
+                        placeholder="Note"
+                        value={studentGrades[student.id] || ''}
+                        onChange={(e) => setStudentGrades({
+                          ...studentGrades,
+                          [student.id]: e.target.value
+                        })}
+                        className="w-20 border border-gray-300 rounded px-2 py-1 text-sm"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {bulkClassId && bulkCourseId && filteredStudents.length === 0 && (
+              <div className="text-sm text-gray-500 text-center py-4">
+                Aucun élève trouvé pour cette classe
+              </div>
+            )}
+
+            <div className="flex justify-end space-x-3 pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowBulkModal(false);
+                  setBulkClassId('');
+                  setBulkCourseId('');
+                  setStudentGrades({});
+                }}
+                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Enregistrer les notes
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg text-gray-600">Chargement...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -325,7 +508,6 @@ const GradeManagement: React.FC = () => {
         </div>
       </div>
 
-      {/* Filters */}
       <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
@@ -377,7 +559,6 @@ const GradeManagement: React.FC = () => {
         </div>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
           <div className="flex items-center">
@@ -425,7 +606,6 @@ const GradeManagement: React.FC = () => {
         </div>
       </div>
 
-      {/* Grades Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -435,7 +615,7 @@ const GradeManagement: React.FC = () => {
                   Élève
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Matière
+                  Cours / Matière
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Note
@@ -455,23 +635,23 @@ const GradeManagement: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredGrades.map((grade) => {
-                const student = students.find(s => s.id === grade.studentId);
-                const teacher = teachers.find(t => t.id === grade.teacherId);
-                return (
+              {filteredGrades.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-4 text-center text-sm text-gray-500">
+                    Aucune note trouvée
+                  </td>
+                </tr>
+              ) : (
+                filteredGrades.map((grade) => (
                   <tr key={grade.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
-                        {student?.name}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {student?.class}
+                        {grade.student?.firstName} {grade.student?.lastName}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {teacher?.subject}
-                      </div>
+                      <div className="text-sm text-gray-900">{grade.course?.title}</div>
+                      <div className="text-xs text-gray-500">{grade.course?.subject}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`text-lg font-bold ${getGradeColor(grade.value, grade.maxValue)}`}>
@@ -487,7 +667,7 @@ const GradeManagement: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {teacher?.name}
+                      {grade.teacher?.firstName} {grade.teacher?.lastName}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {grade.date.toLocaleDateString('fr-FR')}
@@ -500,14 +680,17 @@ const GradeManagement: React.FC = () => {
                         <button className="text-green-600 hover:text-green-900">
                           <Edit className="h-4 w-4" />
                         </button>
-                        <button className="text-red-600 hover:text-red-900">
+                        <button
+                          onClick={() => handleDeleteGrade(grade.id)}
+                          className="text-red-600 hover:text-red-900"
+                        >
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
                     </td>
                   </tr>
-                );
-              })}
+                ))
+              )}
             </tbody>
           </table>
         </div>
