@@ -36,12 +36,19 @@ const ScheduleManagement: React.FC = () => {
         ]);
 
         // Handle different response formats
-        const teachersData = Array.isArray(teachersResponse) ? teachersResponse :
-                           (teachersResponse.data && Array.isArray(teachersResponse.data) ? teachersResponse.data : []);
-        const classesData = Array.isArray(classesResponse) ? classesResponse :
-                          (classesResponse.data && Array.isArray(classesResponse.data) ? classesResponse.data : []);
+        // Server returns { users: [...], pagination: {...} } for users
+        // Server returns { data: [...] } or directly [...] for classes
+        const teachersData = teachersResponse.users ? teachersResponse.users :
+                           (Array.isArray(teachersResponse) ? teachersResponse :
+                           (teachersResponse.data && Array.isArray(teachersResponse.data) ? teachersResponse.data : []));
 
+        const classesData = classesResponse.data ? classesResponse.data :
+                          (Array.isArray(classesResponse) ? classesResponse :
+                          (classesResponse.classes ? classesResponse.classes : []));
+
+        console.log('Teachers Response:', teachersResponse);
         console.log('Teachers loaded:', teachersData);
+        console.log('Classes Response:', classesResponse);
         console.log('Classes loaded:', classesData);
 
         setTeachers(teachersData);
