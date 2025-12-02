@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, Edit, Trash2, TrendingUp, Calendar, Filter, Download, Eye, Users } from 'lucide-react';
 import { Grade } from '../../types';
-import { supabaseGradeService, supabaseUserService, supabaseCourseService, supabaseClassService } from '../../services/supabase';
+import { gradeService, userService, courseService, classService } from '../../services/api';
 
 const GradeManagement: React.FC = () => {
   const [selectedClass, setSelectedClass] = useState('all');
@@ -35,17 +35,33 @@ const GradeManagement: React.FC = () => {
   const loadAllData = async () => {
     try {
       setLoading(true);
-      const [gradesData, studentsData, coursesData, classesData] = await Promise.all([
-        supabaseGradeService.getAll(),
-        supabaseUserService.getAll({ role: 'student' }),
-        supabaseCourseService.getAll(),
-        supabaseClassService.getAll()
+
+      const [gradesResponse, studentsResponse, coursesResponse, classesResponse] = await Promise.all([
+        gradeService.getAll(),
+        userService.getAll({ role: 'student' }),
+        courseService.getAll(),
+        classService.getAll()
       ]);
+
+      console.log('Grades Response:', gradesResponse);
+      console.log('Students Response:', studentsResponse);
+      console.log('Courses Response:', coursesResponse);
+      console.log('Classes Response:', classesResponse);
+
+      const gradesData = Array.isArray(gradesResponse) ? gradesResponse : gradesResponse?.grades || [];
+      const studentsData = Array.isArray(studentsResponse) ? studentsResponse : studentsResponse?.users || [];
+      const coursesData = Array.isArray(coursesResponse) ? coursesResponse : coursesResponse?.courses || [];
+      const classesData = Array.isArray(classesResponse) ? classesResponse : classesResponse?.classes || [];
 
       setGrades(gradesData);
       setStudents(studentsData);
       setCourses(coursesData);
       setClasses(classesData);
+
+      console.log('Grades loaded:', gradesData.length);
+      console.log('Students loaded:', studentsData.length);
+      console.log('Courses loaded:', coursesData.length);
+      console.log('Classes loaded:', classesData.length);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -53,9 +69,22 @@ const GradeManagement: React.FC = () => {
     }
   };
 
+  const getStudentInfo = (studentId: string) => {
+    return students.find(s => s.id === studentId);
+  };
+
+  const getCourseInfo = (courseId: string) => {
+    return courses.find(c => c.id === courseId);
+  };
+
+  const getClassInfo = (classId: string) => {
+    return classes.find(c => c.id === classId);
+  };
+
   const filteredGrades = grades.filter(grade => {
-    const matchesClass = selectedClass === 'all' || grade.course?.class?.id === selectedClass;
-    const matchesSubject = selectedSubject === 'all' || grade.course?.subject === selectedSubject;
+    const course = getCourseInfo(grade.courseId);
+    const matchesClass = selectedClass === 'all' || course?.classId === selectedClass;
+    const matchesSubject = selectedSubject === 'all' || course?.subject === selectedSubject;
     const matchesType = selectedType === 'all' || grade.type === selectedType;
 
     return matchesClass && matchesSubject && matchesType;
@@ -106,7 +135,7 @@ const GradeManagement: React.FC = () => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cette note ?')) return;
 
     try {
-      await supabaseGradeService.delete(gradeId);
+      await gradeService.delete(gradeId);
       await loadAllData();
     } catch (error) {
       console.error('Error deleting grade:', error);
@@ -135,7 +164,7 @@ const GradeManagement: React.FC = () => {
 
       try {
         const course = courses.find(c => c.id === formData.courseId);
-        await supabaseGradeService.create({
+        await gradeService.create({
           studentId: formData.studentId,
           courseId: formData.courseId,
           teacherId: course?.teacherId || currentUser.id,
@@ -148,6 +177,7 @@ const GradeManagement: React.FC = () => {
 
         setShowAddModal(false);
         await loadAllData();
+        alert('Note ajoutée avec succès !');
       } catch (error) {
         console.error('Error creating grade:', error);
         alert('Erreur lors de la création de la note');
@@ -160,7 +190,7 @@ const GradeManagement: React.FC = () => {
           <h3 className="text-lg font-semibold mb-4">Ajouter une note</h3>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Élève</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Élève *</label>
               <select
                 value={formData.studentId}
                 onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
@@ -174,10 +204,13 @@ const GradeManagement: React.FC = () => {
                   </option>
                 ))}
               </select>
+              {students.length === 0 && (
+                <p className="text-xs text-red-600 mt-1">Aucun élève trouvé dans la base de données</p>
+              )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Cours</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Cours *</label>
               <select
                 value={formData.courseId}
                 onChange={(e) => setFormData({ ...formData, courseId: e.target.value })}
@@ -185,17 +218,23 @@ const GradeManagement: React.FC = () => {
                 required
               >
                 <option value="">Sélectionner un cours</option>
-                {courses.map(course => (
-                  <option key={course.id} value={course.id}>
-                    {course.title} - {course.subject} ({course.class?.name})
-                  </option>
-                ))}
+                {courses.map(course => {
+                  const classInfo = getClassInfo(course.classId);
+                  return (
+                    <option key={course.id} value={course.id}>
+                      {course.title} - {course.subject} ({classInfo?.name})
+                    </option>
+                  );
+                })}
               </select>
+              {courses.length === 0 && (
+                <p className="text-xs text-red-600 mt-1">Aucun cours trouvé. Créez d'abord des cours dans l'onglet "Cours"</p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Note</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Note *</label>
                 <input
                   type="number"
                   min="0"
@@ -208,7 +247,7 @@ const GradeManagement: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Sur</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Sur *</label>
                 <input
                   type="number"
                   min="1"
@@ -222,7 +261,7 @@ const GradeManagement: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Type d'évaluation</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Type d'évaluation *</label>
               <select
                 value={formData.type}
                 onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
@@ -236,7 +275,7 @@ const GradeManagement: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
               <input
                 type="date"
                 value={formData.date}
@@ -268,6 +307,7 @@ const GradeManagement: React.FC = () => {
               <button
                 type="submit"
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                disabled={students.length === 0 || courses.length === 0}
               >
                 Ajouter la note
               </button>
@@ -279,12 +319,21 @@ const GradeManagement: React.FC = () => {
   };
 
   const BulkGradeModal = () => {
-    const filteredStudents = bulkClassId
-      ? students.filter(student => {
-          const course = courses.find(c => c.id === bulkCourseId);
-          return course?.classId === bulkClassId;
-        })
-      : [];
+    const [filteredStudents, setFilteredStudents] = useState<any[]>([]);
+
+    useEffect(() => {
+      if (bulkClassId && bulkCourseId) {
+        const course = courses.find(c => c.id === bulkCourseId);
+        if (course) {
+          const classStudents = students.filter(student => {
+            return true;
+          });
+          setFilteredStudents(classStudents);
+        }
+      } else {
+        setFilteredStudents([]);
+      }
+    }, [bulkClassId, bulkCourseId]);
 
     const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
@@ -314,7 +363,7 @@ const GradeManagement: React.FC = () => {
 
       try {
         for (const gradeData of gradesToCreate) {
-          await supabaseGradeService.create(gradeData);
+          await gradeService.create(gradeData);
         }
 
         setShowBulkModal(false);
@@ -322,6 +371,7 @@ const GradeManagement: React.FC = () => {
         setBulkCourseId('');
         setStudentGrades({});
         await loadAllData();
+        alert(`${gradesToCreate.length} note(s) ajoutée(s) avec succès !`);
       } catch (error) {
         console.error('Error creating bulk grades:', error);
         alert('Erreur lors de la création des notes');
@@ -339,7 +389,7 @@ const GradeManagement: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Classe</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Classe *</label>
                 <select
                   value={bulkClassId}
                   onChange={(e) => {
@@ -357,7 +407,7 @@ const GradeManagement: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Cours</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cours *</label>
                 <select
                   value={bulkCourseId}
                   onChange={(e) => setBulkCourseId(e.target.value)}
@@ -411,11 +461,11 @@ const GradeManagement: React.FC = () => {
               </div>
             </div>
 
-            {bulkClassId && bulkCourseId && filteredStudents.length > 0 && (
+            {bulkClassId && bulkCourseId && students.length > 0 && (
               <div className="border rounded-lg p-4 max-h-60 overflow-y-auto">
                 <h4 className="font-medium mb-3">Notes par élève :</h4>
                 <div className="space-y-2">
-                  {filteredStudents.map((student) => (
+                  {students.map((student) => (
                     <div key={student.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                       <span className="text-sm font-medium">
                         {student.firstName} {student.lastName}
@@ -439,9 +489,9 @@ const GradeManagement: React.FC = () => {
               </div>
             )}
 
-            {bulkClassId && bulkCourseId && filteredStudents.length === 0 && (
-              <div className="text-sm text-gray-500 text-center py-4">
-                Aucun élève trouvé pour cette classe
+            {bulkClassId && bulkCourseId && students.length === 0 && (
+              <div className="text-sm text-red-600 text-center py-4">
+                Aucun élève trouvé dans la base de données
               </div>
             )}
 
@@ -461,6 +511,7 @@ const GradeManagement: React.FC = () => {
               <button
                 type="submit"
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                disabled={students.length === 0 || courses.length === 0}
               >
                 Enregistrer les notes
               </button>
@@ -474,7 +525,7 @@ const GradeManagement: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-lg text-gray-600">Chargement...</div>
+        <div className="text-lg text-gray-600">Chargement des données...</div>
       </div>
     );
   }
@@ -624,9 +675,6 @@ const GradeManagement: React.FC = () => {
                   Type
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Enseignant
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Date
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -637,59 +685,60 @@ const GradeManagement: React.FC = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredGrades.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-4 text-center text-sm text-gray-500">
-                    Aucune note trouvée
+                  <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
+                    {grades.length === 0 ? 'Aucune note enregistrée. Ajoutez votre première note !' : 'Aucune note ne correspond aux filtres sélectionnés'}
                   </td>
                 </tr>
               ) : (
-                filteredGrades.map((grade) => (
-                  <tr key={grade.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {grade.student?.firstName} {grade.student?.lastName}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{grade.course?.title}</div>
-                      <div className="text-xs text-gray-500">{grade.course?.subject}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`text-lg font-bold ${getGradeColor(grade.value, grade.maxValue)}`}>
-                        {grade.value}/{grade.maxValue}
-                      </span>
-                      <div className="text-xs text-gray-500">
-                        {Math.round((grade.value / grade.maxValue) * 100)}%
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getTypeBadgeColor(grade.type)}`}>
-                        {getTypeLabel(grade.type)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {grade.teacher?.firstName} {grade.teacher?.lastName}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {grade.date.toLocaleDateString('fr-FR')}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex space-x-2">
-                        <button className="text-blue-600 hover:text-blue-900">
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button className="text-green-600 hover:text-green-900">
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteGrade(grade.id)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                filteredGrades.map((grade) => {
+                  const student = getStudentInfo(grade.studentId);
+                  const course = getCourseInfo(grade.courseId);
+                  return (
+                    <tr key={grade.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {student?.firstName} {student?.lastName}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{course?.title}</div>
+                        <div className="text-xs text-gray-500">{course?.subject}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`text-lg font-bold ${getGradeColor(grade.value, grade.maxValue)}`}>
+                          {grade.value}/{grade.maxValue}
+                        </span>
+                        <div className="text-xs text-gray-500">
+                          {Math.round((grade.value / grade.maxValue) * 100)}%
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getTypeBadgeColor(grade.type)}`}>
+                          {getTypeLabel(grade.type)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {new Date(grade.date).toLocaleDateString('fr-FR')}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex space-x-2">
+                          <button className="text-blue-600 hover:text-blue-900">
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button className="text-green-600 hover:text-green-900">
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteGrade(grade.id)}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
