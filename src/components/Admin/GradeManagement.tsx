@@ -382,6 +382,10 @@ const GradeManagement: React.FC = () => {
       ? courses.filter(c => c.classId === bulkClassId)
       : [];
 
+    console.log('Selected bulkClassId:', bulkClassId);
+    console.log('All courses:', courses);
+    console.log('Available courses for this class:', availableCourses);
+
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
