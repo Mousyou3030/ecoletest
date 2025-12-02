@@ -81,7 +81,7 @@ router.post('/', authenticateToken, requireRole(['admin', 'teacher']), [
     const teacherId = req.user.id;
 
     const [result] = await pool.execute(
-      `INSERT INTO grades (id, studentId, courseId, teacherId, value, maxValue, type, date, comments) 
+      `INSERT INTO grades (\`id\`, \`studentId\`, \`courseId\`, \`teacherId\`, \`value\`, \`maxValue\`, \`type\`, \`date\`, \`comments\`)
        VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?)`,
       [studentId, courseId, teacherId, value, maxValue, type, date, comments || null]
     );
@@ -106,23 +106,23 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'teacher']), async (
     let params = [];
 
     if (value !== undefined) {
-      updateFields.push('value = ?');
+      updateFields.push('`value` = ?');
       params.push(value);
     }
     if (maxValue !== undefined) {
-      updateFields.push('maxValue = ?');
+      updateFields.push('`maxValue` = ?');
       params.push(maxValue);
     }
     if (type) {
-      updateFields.push('type = ?');
+      updateFields.push('`type` = ?');
       params.push(type);
     }
     if (date) {
-      updateFields.push('date = ?');
+      updateFields.push('`date` = ?');
       params.push(date);
     }
     if (comments !== undefined) {
-      updateFields.push('comments = ?');
+      updateFields.push('`comments` = ?');
       params.push(comments);
     }
 
