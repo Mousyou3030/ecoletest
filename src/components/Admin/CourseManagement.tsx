@@ -166,6 +166,8 @@ const CourseManagement: React.FC = () => {
         materials
       };
 
+      console.log('Course data being sent:', courseData);
+
       await courseService.create(courseData);
 
       // Refresh the courses list
