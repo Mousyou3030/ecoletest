@@ -58,7 +58,12 @@ router.post('/', authenticateToken, requireRole(['admin', 'teacher']), [
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      console.error('Validation errors:', errors.array());
+      console.error('Request body:', req.body);
+      return res.status(400).json({
+        message: 'Erreur de validation',
+        errors: errors.array()
+      });
     }
 
     const { title, description, subject, teacherId, classId, startDate, endDate, materials } = req.body;

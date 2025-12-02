@@ -175,7 +175,15 @@ const CourseManagement: React.FC = () => {
       alert('Cours créé avec succès !');
     } catch (error: any) {
       console.error('Erreur lors de la création:', error);
-      alert(error.response?.data?.message || 'Erreur lors de la création du cours');
+      console.error('Response data:', error.response?.data);
+      const errorMessage = error.response?.data?.message || 'Erreur lors de la création du cours';
+      const validationErrors = error.response?.data?.errors;
+      if (validationErrors) {
+        console.error('Validation errors:', validationErrors);
+        alert(`${errorMessage}\n\n${validationErrors.map((e: any) => `${e.path}: ${e.msg}`).join('\n')}`);
+      } else {
+        alert(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
