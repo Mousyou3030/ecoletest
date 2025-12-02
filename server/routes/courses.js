@@ -11,32 +11,32 @@ router.get('/', authenticateToken, async (req, res) => {
     const { teacherId, classId, subject } = req.query;
     
     let query = `
-      SELECT c.*, 
-             CONCAT(u.firstName, ' ', u.lastName) as teacherName,
-             cl.name as className
+      SELECT c.*,
+             CONCAT(u.\`firstName\`, ' ', u.\`lastName\`) as teacherName,
+             cl.\`name\` as className
       FROM courses c
-      LEFT JOIN users u ON c.teacherId = u.id
-      LEFT JOIN classes cl ON c.classId = cl.id
-      WHERE c.isActive = TRUE
+      LEFT JOIN users u ON c.\`teacherId\` = u.\`id\`
+      LEFT JOIN classes cl ON c.\`classId\` = cl.\`id\`
+      WHERE c.\`isActive\` = TRUE
     `;
     let params = [];
 
     if (teacherId) {
-      query += ' AND c.teacherId = ?';
+      query += ' AND c.`teacherId` = ?';
       params.push(teacherId);
     }
 
     if (classId) {
-      query += ' AND c.classId = ?';
+      query += ' AND c.`classId` = ?';
       params.push(classId);
     }
 
     if (subject) {
-      query += ' AND c.subject = ?';
+      query += ' AND c.`subject` = ?';
       params.push(subject);
     }
 
-    query += ' ORDER BY c.createdAt DESC';
+    query += ' ORDER BY c.`createdAt` DESC';
 
     const [courses] = await pool.execute(query, params);
     res.json(courses);
@@ -64,7 +64,7 @@ router.post('/', authenticateToken, requireRole(['admin', 'teacher']), [
     const { title, description, subject, teacherId, classId, startDate, endDate, materials } = req.body;
 
     const [result] = await pool.execute(
-      `INSERT INTO courses (id, title, description, subject, teacherId, classId, startDate, endDate, materials) 
+      `INSERT INTO courses (\`id\`, \`title\`, \`description\`, \`subject\`, \`teacherId\`, \`classId\`, \`startDate\`, \`endDate\`, \`materials\`)
        VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?)`,
       [title, description || null, subject, teacherId, classId, startDate, endDate, JSON.stringify(materials || [])]
     );
