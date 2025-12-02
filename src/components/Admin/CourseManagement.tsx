@@ -203,7 +203,17 @@ const CourseManagement: React.FC = () => {
     try {
       setLoading(true);
       const response = await courseService.getAll();
-      setCourses(response.data || response);
+      const coursesData = response.data || response;
+
+      // Parse materials if it's a JSON string
+      const parsedCourses = coursesData.map((course: any) => ({
+        ...course,
+        materials: typeof course.materials === 'string'
+          ? JSON.parse(course.materials || '[]')
+          : (course.materials || [])
+      }));
+
+      setCourses(parsedCourses);
     } catch (error) {
       console.error('Erreur lors du chargement des cours:', error);
     } finally {
@@ -337,7 +347,7 @@ const CourseManagement: React.FC = () => {
                   <div className="flex items-center text-gray-600">
                     <Calendar className="h-4 w-4 mr-2" />
                     <span>
-                      {course.startDate.toLocaleDateString('fr-FR')} - {course.endDate.toLocaleDateString('fr-FR')}
+                      {new Date(course.startDate).toLocaleDateString('fr-FR')} - {new Date(course.endDate).toLocaleDateString('fr-FR')}
                     </span>
                   </div>
                   <div className="flex items-center text-gray-600">
