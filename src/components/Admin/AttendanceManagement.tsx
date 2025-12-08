@@ -1,61 +1,117 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Calendar, Users, CheckCircle, XCircle, Clock, Filter, Download } from 'lucide-react';
-import { Attendance } from '../../types';
+import { attendanceService, classService } from '../../services/api';
+
+interface Student {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  class_name?: string;
+}
+
+interface AttendanceRecord {
+  id: number;
+  student_id: number;
+  class_id?: number;
+  date: string;
+  status: 'present' | 'absent' | 'late' | 'excused';
+  notes?: string;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  class_name?: string;
+}
+
+interface Stats {
+  total: number;
+  present: number;
+  absent: number;
+  late: number;
+  excused: number;
+}
 
 const AttendanceManagement: React.FC = () => {
-  const [selectedClass, setSelectedClass] = useState('1');
+  const [selectedClass, setSelectedClass] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'present' | 'absent' | 'late' | 'excused'>('all');
+  const [classes, setClasses] = useState<any[]>([]);
+  const [attendances, setAttendances] = useState<AttendanceRecord[]>([]);
+  const [stats, setStats] = useState<Stats>({ total: 0, present: 0, absent: 0, late: 0, excused: 0 });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  // Mock data
-  const classes = [
-    { id: '1', name: '6ème A' },
-    { id: '2', name: '6ème B' },
-    { id: '3', name: '3ème A' }
-  ];
+  useEffect(() => {
+    loadClasses();
+  }, []);
 
-  const students = [
-    { id: '1', name: 'Sophie Dupont', class: '6ème A' },
-    { id: '2', name: 'Lucas Martin', class: '6ème A' },
-    { id: '3', name: 'Emma Bernard', class: '6ème A' },
-    { id: '4', name: 'Thomas Dubois', class: '6ème A' }
-  ];
-
-  const [attendances, setAttendances] = useState<Attendance[]>([
-    {
-      id: '1',
-      studentId: '1',
-      date: new Date(),
-      status: 'present',
-      notes: ''
-    },
-    {
-      id: '2',
-      studentId: '2',
-      date: new Date(),
-      status: 'absent',
-      notes: 'Maladie'
-    },
-    {
-      id: '3',
-      studentId: '3',
-      date: new Date(),
-      status: 'late',
-      notes: 'Retard de 15 minutes'
-    },
-    {
-      id: '4',
-      studentId: '4',
-      date: new Date(),
-      status: 'present',
-      notes: ''
+  useEffect(() => {
+    if (selectedClass || selectedDate) {
+      loadAttendances();
+      loadStats();
     }
-  ]);
+  }, [selectedClass, selectedDate, selectedStatus]);
 
-  const filteredAttendances = attendances.filter(attendance => {
-    const matchesStatus = selectedStatus === 'all' || attendance.status === selectedStatus;
-    return matchesStatus;
-  });
+  const loadClasses = async () => {
+    try {
+      const response = await classService.getAll();
+      if (response.success) {
+        setClasses(response.data);
+        if (response.data.length > 0) {
+          setSelectedClass(response.data[0].id.toString());
+        }
+      }
+    } catch (err: any) {
+      setError('Erreur lors du chargement des classes');
+      console.error(err);
+    }
+  };
+
+  const loadAttendances = async () => {
+    try {
+      setLoading(true);
+      const params: any = {
+        date: selectedDate
+      };
+
+      if (selectedClass) {
+        params.class_id = selectedClass;
+      }
+
+      if (selectedStatus && selectedStatus !== 'all') {
+        params.status = selectedStatus;
+      }
+
+      const response = await attendanceService.getAll(params);
+      if (response.success) {
+        setAttendances(response.data);
+      }
+    } catch (err: any) {
+      setError('Erreur lors du chargement des présences');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadStats = async () => {
+    try {
+      const params: any = {
+        date: selectedDate
+      };
+
+      if (selectedClass) {
+        params.class_id = selectedClass;
+      }
+
+      const response = await attendanceService.getStats(params);
+      if (response.success) {
+        setStats(response.data);
+      }
+    } catch (err: any) {
+      console.error('Erreur lors du chargement des statistiques:', err);
+    }
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -87,23 +143,40 @@ const AttendanceManagement: React.FC = () => {
     }
   };
 
-  const updateAttendanceStatus = (attendanceId: string, newStatus: string) => {
-    setAttendances(prev => prev.map(att => 
-      att.id === attendanceId ? { ...att, status: newStatus as any } : att
-    ));
+  const updateAttendanceStatus = async (attendanceId: number, newStatus: string) => {
+    try {
+      const response = await attendanceService.update(attendanceId.toString(), { status: newStatus });
+      if (response.success) {
+        setAttendances(prev => prev.map(att =>
+          att.id === attendanceId ? { ...att, status: newStatus as any } : att
+        ));
+        loadStats();
+      }
+    } catch (err: any) {
+      setError('Erreur lors de la mise à jour du statut');
+      console.error(err);
+    }
   };
 
-  const calculateStats = () => {
-    const total = filteredAttendances.length;
-    const present = filteredAttendances.filter(a => a.status === 'present').length;
-    const absent = filteredAttendances.filter(a => a.status === 'absent').length;
-    const late = filteredAttendances.filter(a => a.status === 'late').length;
-    const excused = filteredAttendances.filter(a => a.status === 'excused').length;
+  const handleExport = () => {
+    const csvContent = [
+      ['Élève', 'Classe', 'Date', 'Statut', 'Notes'],
+      ...attendances.map(att => [
+        `${att.first_name} ${att.last_name}`,
+        att.class_name || '',
+        att.date,
+        getStatusLabel(att.status),
+        att.notes || ''
+      ])
+    ].map(row => row.join(',')).join('\n');
 
-    return { total, present, absent, late, excused };
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `presences-${selectedDate}.csv`;
+    a.click();
   };
-
-  const stats = calculateStats();
 
   return (
     <div className="space-y-6">
@@ -113,12 +186,21 @@ const AttendanceManagement: React.FC = () => {
           <p className="text-gray-600">Suivez et gérez les présences des élèves</p>
         </div>
         <div className="flex space-x-3">
-          <button className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+          <button
+            onClick={handleExport}
+            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+          >
             <Download className="h-4 w-4 mr-2" />
             Exporter
           </button>
         </div>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          {error}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
@@ -130,6 +212,7 @@ const AttendanceManagement: React.FC = () => {
               onChange={(e) => setSelectedClass(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
+              <option value="">Toutes les classes</option>
               {classes.map(cls => (
                 <option key={cls.id} value={cls.id}>{cls.name}</option>
               ))}
@@ -159,7 +242,10 @@ const AttendanceManagement: React.FC = () => {
             </select>
           </div>
           <div className="flex items-end">
-            <button className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+            <button
+              onClick={loadAttendances}
+              className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
               <Filter className="h-4 w-4 mr-2" />
               Filtrer
             </button>
@@ -176,7 +262,7 @@ const AttendanceManagement: React.FC = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.total || 0}</p>
             </div>
           </div>
         </div>
@@ -187,7 +273,7 @@ const AttendanceManagement: React.FC = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Présents</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.present}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.present || 0}</p>
             </div>
           </div>
         </div>
@@ -198,7 +284,7 @@ const AttendanceManagement: React.FC = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Absents</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.absent}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.absent || 0}</p>
             </div>
           </div>
         </div>
@@ -209,7 +295,7 @@ const AttendanceManagement: React.FC = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Retards</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.late}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.late || 0}</p>
             </div>
           </div>
         </div>
@@ -220,7 +306,7 @@ const AttendanceManagement: React.FC = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Excusés</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.excused}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.excused || 0}</p>
             </div>
           </div>
         </div>
@@ -229,46 +315,60 @@ const AttendanceManagement: React.FC = () => {
       {/* Attendance Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Élève
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Statut
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Notes
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredAttendances.map((attendance) => {
-                const student = students.find(s => s.id === attendance.studentId);
-                return (
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <p className="mt-2 text-gray-600">Chargement...</p>
+            </div>
+          ) : attendances.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-600">Aucune présence enregistrée pour cette date</p>
+            </div>
+          ) : (
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Élève
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Classe
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Statut
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Notes
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {attendances.map((attendance) => (
                   <tr key={attendance.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10">
                           <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
                             <span className="text-sm font-medium text-gray-700">
-                              {student?.name.split(' ').map(n => n[0]).join('')}
+                              {attendance.first_name?.[0]}{attendance.last_name?.[0]}
                             </span>
                           </div>
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">
-                            {student?.name}
+                            {attendance.first_name} {attendance.last_name}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {student?.class}
+                            {attendance.email}
                           </div>
                         </div>
                       </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{attendance.class_name || '-'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -298,10 +398,10 @@ const AttendanceManagement: React.FC = () => {
                       </div>
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>

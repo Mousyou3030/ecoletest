@@ -233,6 +233,11 @@ export const attendanceService = {
     return response.data;
   },
 
+  getStats: async (params?: any) => {
+    const response = await api.get('/attendances/stats', { params });
+    return response.data;
+  },
+
   create: async (attendanceData: any) => {
     const response = await api.post('/attendances', attendanceData);
     return response.data;
@@ -243,8 +248,17 @@ export const attendanceService = {
     return response.data;
   },
 
-  bulkCreate: async (attendancesData: any[]) => {
-    const response = await api.post('/attendances/bulk', { attendances: attendancesData });
+  delete: async (id: string) => {
+    const response = await api.delete(`/attendances/${id}`);
+    return response.data;
+  },
+
+  bulkCreate: async (classId: string, date: string, attendancesData: any[]) => {
+    const response = await api.post('/attendances/bulk', {
+      class_id: classId,
+      date,
+      attendances: attendancesData
+    });
     return response.data;
   }
 };
