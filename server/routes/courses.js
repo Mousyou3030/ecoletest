@@ -22,12 +22,12 @@ router.get('/', authenticateToken, async (req, res) => {
     let params = [];
 
     if (teacher_id) {
-      query += ' AND c.`teacher_id` = ?';
+      query += ' AND c.`teacherId` = ?';
       params.push(teacher_id);
     }
 
     if (class_id) {
-      query += ' AND c.`class_id` = ?';
+      query += ' AND c.`classId` = ?';
       params.push(class_id);
     }
 
@@ -36,7 +36,7 @@ router.get('/', authenticateToken, async (req, res) => {
       params.push(subject);
     }
 
-    query += ' ORDER BY c.`created_at` DESC';
+    query += ' ORDER BY c.`createdAt` DESC';
 
     const [courses] = await pool.execute(query, params);
     res.json(courses);
@@ -106,19 +106,19 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'teacher']), async (
       params.push(subject);
     }
     if (teacher_id) {
-      updateFields.push('teacher_id = ?');
+      updateFields.push('teacherId = ?');
       params.push(teacher_id);
     }
     if (class_id) {
-      updateFields.push('class_id = ?');
+      updateFields.push('classId = ?');
       params.push(class_id);
     }
     if (start_date) {
-      updateFields.push('start_date = ?');
+      updateFields.push('startDate = ?');
       params.push(start_date);
     }
     if (end_date) {
-      updateFields.push('end_date = ?');
+      updateFields.push('endDate = ?');
       params.push(end_date);
     }
     if (materials) {

@@ -6,32 +6,32 @@ const { authenticate } = require('../middleware/auth');
 // Récupérer toutes les présences avec filtres
 router.get('/', authenticate, async (req, res) => {
   try {
-    const { class_id, date, status, student_id } = req.query;
+    const { classId, date, status, studentId } = req.query;
 
     let query = `
       SELECT
         a.id,
-        a.student_id,
-        a.class_id,
+        a.studentId,
+        a.classId,
         a.date,
         a.status,
         a.notes,
-        a.created_at,
-        u.first_name,
-        u.last_name,
+        a.createdAt,
+        u.firstName,
+        u.lastName,
         u.email,
-        c.name as class_name
+        c.name as className
       FROM attendances a
-      LEFT JOIN users u ON a.student_id = u.id
-      LEFT JOIN classes c ON a.class_id = c.id
+      LEFT JOIN users u ON a.studentId = u.id
+      LEFT JOIN classes c ON a.classId = c.id
       WHERE 1=1
     `;
 
     const params = [];
 
-    if (class_id) {
-      query += ' AND a.class_id = ?';
-      params.push(class_id);
+    if (classId) {
+      query += ' AND a.classId = ?';
+      params.push(classId);
     }
 
     if (date) {
@@ -44,12 +44,12 @@ router.get('/', authenticate, async (req, res) => {
       params.push(status);
     }
 
-    if (student_id) {
-      query += ' AND a.student_id = ?';
-      params.push(student_id);
+    if (studentId) {
+      query += ' AND a.studentId = ?';
+      params.push(studentId);
     }
 
-    query += ' ORDER BY a.date DESC, u.last_name ASC';
+    query += ' ORDER BY a.date DESC, u.lastName ASC';
 
     const [attendances] = await pool.execute(query, params);
 
@@ -69,7 +69,7 @@ router.get('/', authenticate, async (req, res) => {
 // Récupérer les statistiques de présence
 router.get('/stats', authenticate, async (req, res) => {
   try {
-    const { class_id, date, start_date, end_date } = req.query;
+    const { classId, date, start_date, end_date } = req.query;
 
     let query = `
       SELECT
@@ -84,9 +84,9 @@ router.get('/stats', authenticate, async (req, res) => {
 
     const params = [];
 
-    if (class_id) {
-      query += ' AND class_id = ?';
-      params.push(class_id);
+    if (classId) {
+      query += ' AND classId = ?';
+      params.push(classId);
     }
 
     if (date) {
@@ -115,19 +115,19 @@ router.get('/stats', authenticate, async (req, res) => {
 // Créer ou mettre à jour une présence
 router.post('/', authenticate, async (req, res) => {
   try {
-    const { student_id, class_id, date, status, notes } = req.body;
+    const { studentId, classId, date, status, notes } = req.body;
 
-    if (!student_id || !date || !status) {
+    if (!studentId || !date || !status) {
       return res.status(400).json({
         success: false,
-        error: 'Les champs student_id, date et status sont requis'
+        error: 'Les champs studentId, date et status sont requis'
       });
     }
 
     // Vérifier si une présence existe déjà
     const [existing] = await pool.execute(
-      'SELECT id FROM attendances WHERE student_id = ? AND date = ? AND class_id = ?',
-      [student_id, date, class_id]
+      'SELECT id FROM attendances WHERE studentId = ? AND date = ? AND classId = ?',
+      [studentId, date, classId]
     );
 
     if (existing.length > 0) {
@@ -140,19 +140,19 @@ router.post('/', authenticate, async (req, res) => {
       res.json({
         success: true,
         message: 'Présence mise à jour avec succès',
-        data: { id: existing[0].id, student_id, date, status, notes }
+        data: { id: existing[0].id, studentId, date, status, notes }
       });
     } else {
       // Créer
       const [result] = await pool.execute(
-        'INSERT INTO attendances (student_id, class_id, date, status, notes, marked_by) VALUES (?, ?, ?, ?, ?, ?)',
-        [student_id, class_id || null, date, status, notes || null, req.user.id]
+        'INSERT INTO attendances (studentId, classId, date, status, notes, marked_by) VALUES (?, ?, ?, ?, ?, ?)',
+        [studentId, classId || null, date, status, notes || null, req.user.id]
       );
 
       res.status(201).json({
         success: true,
         message: 'Présence créée avec succès',
-        data: { id: result.insertId, student_id, class_id, date, status, notes }
+        data: { id: result.insertId, studentId, classId, date, status, notes }
       });
     }
   } catch (error) {
@@ -235,12 +235,12 @@ router.delete('/:id', authenticate, async (req, res) => {
 // Marquer les présences pour toute une classe
 router.post('/bulk', authenticate, async (req, res) => {
   try {
-    const { class_id, date, attendances } = req.body;
+    const { classId, date, attendances } = req.body;
 
-    if (!class_id || !date || !attendances || !Array.isArray(attendances)) {
+    if (!classId || !date || !attendances || !Array.isArray(attendances)) {
       return res.status(400).json({
         success: false,
-        error: 'Les champs class_id, date et attendances (array) sont requis'
+        error: 'Les champs classId, date et attendances (array) sont requis'
       });
     }
 
@@ -250,12 +250,12 @@ router.post('/bulk', authenticate, async (req, res) => {
       await connection.beginTransaction();
 
       for (const att of attendances) {
-        const { student_id, status, notes } = att;
+        const { studentId, status, notes } = att;
 
         // Vérifier si existe déjà
         const [existing] = await connection.execute(
-          'SELECT id FROM attendances WHERE student_id = ? AND date = ? AND class_id = ?',
-          [student_id, date, class_id]
+          'SELECT id FROM attendances WHERE studentId = ? AND date = ? AND classId = ?',
+          [studentId, date, classId]
         );
 
         if (existing.length > 0) {
@@ -265,8 +265,8 @@ router.post('/bulk', authenticate, async (req, res) => {
           );
         } else {
           await connection.execute(
-            'INSERT INTO attendances (student_id, class_id, date, status, notes, marked_by) VALUES (?, ?, ?, ?, ?, ?)',
-            [student_id, class_id, date, status, notes || null, req.user.id]
+            'INSERT INTO attendances (studentId, classId, date, status, notes, marked_by) VALUES (?, ?, ?, ?, ?, ?)',
+            [studentId, classId, date, status, notes || null, req.user.id]
           );
         }
       }
