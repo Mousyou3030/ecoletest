@@ -16,7 +16,7 @@ router.get('/', authenticateToken, async (req, res) => {
              COUNT(sc.studentId) as studentCount
       FROM classes c
       LEFT JOIN users u ON c.teacherId = u.id
-      LEFT JOIN student_classes sc ON c.id = sc.classId
+      LEFT JOIN class_students sc ON c.id = sc.classId
       WHERE 1=1
     `;
     let params = [];
@@ -52,7 +52,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
              COUNT(sc.studentId) as studentCount
       FROM classes c
       LEFT JOIN users u ON c.teacherId = u.id
-      LEFT JOIN student_classes sc ON c.id = sc.classId
+      LEFT JOIN class_students sc ON c.id = sc.classId
       WHERE c.id = ?
       GROUP BY c.id
     `, [id]);
@@ -65,7 +65,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     const [students] = await pool.execute(`
       SELECT u.id, u.firstName as firstName, u.lastName as lastName, u.email, sc.enrollmentDate as enrollmentDate
       FROM users u
-      JOIN student_classes sc ON u.id = sc.studentId
+      JOIN class_students sc ON u.id = sc.studentId
       WHERE sc.classId = ?
       ORDER BY u.lastName, u.firstName
     `, [id]);
@@ -212,7 +212,7 @@ router.post('/:id/students', authenticateToken, requireRole(['admin']), [
 
     // Vérifier que l'élève n'est pas déjà dans la classe
     const [existing] = await pool.execute(
-      'SELECT id FROM student_classes WHERE studentId = ? AND classId = ?',
+      'SELECT id FROM class_students WHERE studentId = ? AND classId = ?',
       [studentId, id]
     );
 
@@ -221,7 +221,7 @@ router.post('/:id/students', authenticateToken, requireRole(['admin']), [
     }
 
     await pool.execute(
-      'INSERT INTO student_classes (studentId, classId) VALUES (?, ?)',
+      'INSERT INTO class_students (studentId, classId) VALUES (?, ?)',
       [studentId, id]
     );
 
@@ -238,7 +238,7 @@ router.delete('/:id/students/:studentId', authenticateToken, requireRole(['admin
     const { id, studentId } = req.params;
 
     await pool.execute(
-      'DELETE FROM student_classes WHERE studentId = ? AND classId = ?',
+      'DELETE FROM class_students WHERE studentId = ? AND classId = ?',
       [studentId, id]
     );
 

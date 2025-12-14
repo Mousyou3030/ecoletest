@@ -90,7 +90,7 @@ router.get('/student/:studentId', authenticateToken, async (req, res) => {
        FROM schedules s
        JOIN courses co ON s.courseId = co.id
        JOIN users u ON co.teacherId = u.id
-       JOIN student_classes cs ON s.classId = cs.classId
+       JOIN class_students cs ON s.classId = cs.classId
        WHERE cs.studentId = ?
        AND s.day_of_week = DAYOFWEEK(CURRENT_DATE)
        AND s.startTime > CURRENT_TIME
@@ -178,7 +178,7 @@ router.get('/teacher/:teacherId', authenticateToken, async (req, res) => {
 
     const totalStudents = await pool.execute(
       `SELECT COUNT(DISTINCT cs.studentId) as count
-       FROM student_classes cs
+       FROM class_students cs
        JOIN courses co ON cs.classId = co.classId
        WHERE co.teacherId = ?`,
       [teacherId]
@@ -204,7 +204,7 @@ router.get('/teacher/:teacherId', authenticateToken, async (req, res) => {
         COUNT(*) as total,
         SUM(CASE WHEN a.status = 'present' THEN 1 ELSE 0 END) as present
        FROM attendances a
-       JOIN student_classes cs ON a.studentId = cs.studentId
+       JOIN class_students cs ON a.studentId = cs.studentId
        JOIN courses co ON cs.classId = co.classId
        WHERE co.teacherId = ?
        AND a.date >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)`,
@@ -244,7 +244,7 @@ router.get('/parent/:parentId', authenticateToken, async (req, res) => {
       `SELECT u.id, u.firstName as firstName, u.lastName as lastName, c.name as className
        FROM users u
        JOIN parent_children pc ON u.id = pc.childId
-       JOIN student_classes cs ON u.id = cs.studentId
+       JOIN class_students cs ON u.id = cs.studentId
        JOIN classes c ON cs.classId = c.id
        WHERE pc.parentId = ?`,
       [parentId]

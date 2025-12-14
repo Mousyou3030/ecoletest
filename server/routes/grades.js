@@ -11,7 +11,7 @@ router.get('/', authenticateToken, async (req, res) => {
     const { studentId, courseId, teacherId, type, classId } = req.query;
     
     let query = `
-      SELECT g.*, 
+      SELECT g.*,
              CONCAT(s.firstName, ' ', s.lastName) as studentName,
              CONCAT(t.firstName, ' ', t.lastName) as teacherName,
              c.title as courseTitle,
@@ -21,8 +21,8 @@ router.get('/', authenticateToken, async (req, res) => {
       LEFT JOIN users s ON g.studentId = s.id
       LEFT JOIN users t ON g.teacherId = t.id
       LEFT JOIN courses c ON g.courseId = c.id
-      LEFT JOIN student_classes sc ON s.id = sc.studentId
-      LEFT JOIN classes cl ON sc.classId = cl.id
+      LEFT JOIN class_students cs ON s.id = cs.studentId
+      LEFT JOIN classes cl ON cs.classId = cl.id
       WHERE 1=1
     `;
     let params = [];
