@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
-const { authenticate } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 
 // Récupérer toutes les présences avec filtres
-router.get('/', authenticate, async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
     const { classId, date, status, studentId } = req.query;
 
@@ -67,7 +67,7 @@ router.get('/', authenticate, async (req, res) => {
 });
 
 // Récupérer les statistiques de présence
-router.get('/stats', authenticate, async (req, res) => {
+router.get('/stats', authenticateToken, async (req, res) => {
   try {
     const { classId, date, start_date, end_date } = req.query;
 
@@ -113,7 +113,7 @@ router.get('/stats', authenticate, async (req, res) => {
 });
 
 // Créer ou mettre à jour une présence
-router.post('/', authenticate, async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
   try {
     const { studentId, classId, date, status, notes } = req.body;
 
@@ -165,7 +165,7 @@ router.post('/', authenticate, async (req, res) => {
 });
 
 // Mettre à jour une présence
-router.put('/:id', authenticate, async (req, res) => {
+router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { status, notes } = req.body;
@@ -203,7 +203,7 @@ router.put('/:id', authenticate, async (req, res) => {
 });
 
 // Supprimer une présence
-router.delete('/:id', authenticate, async (req, res) => {
+router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -233,7 +233,7 @@ router.delete('/:id', authenticate, async (req, res) => {
 });
 
 // Marquer les présences pour toute une classe
-router.post('/bulk', authenticate, async (req, res) => {
+router.post('/bulk', authenticateToken, async (req, res) => {
   try {
     const { classId, date, attendances } = req.body;
 

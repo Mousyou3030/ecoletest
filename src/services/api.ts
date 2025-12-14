@@ -260,7 +260,7 @@ export const attendanceService = {
 
   bulkCreate: async (classId: string, date: string, attendancesData: any[]) => {
     const response = await api.post('/attendances/bulk', {
-      class_id: classId,
+      classId,
       date,
       attendances: attendancesData
     });

@@ -12,15 +12,15 @@ interface Student {
 
 interface AttendanceRecord {
   id: number;
-  student_id: number;
-  class_id?: number;
+  studentId: number;
+  classId?: number;
   date: string;
   status: 'present' | 'absent' | 'late' | 'excused';
   notes?: string;
-  first_name?: string;
-  last_name?: string;
+  firstName?: string;
+  lastName?: string;
   email?: string;
-  class_name?: string;
+  className?: string;
 }
 
 interface Stats {
@@ -40,6 +40,8 @@ const AttendanceManagement: React.FC = () => {
   const [stats, setStats] = useState<Stats>({ total: 0, present: 0, absent: 0, late: 0, excused: 0 });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showMarkModal, setShowMarkModal] = useState(false);
+  const [students, setStudents] = useState<any[]>([]);
 
   useEffect(() => {
     loadClasses();
@@ -73,7 +75,7 @@ const AttendanceManagement: React.FC = () => {
       };
 
       if (selectedClass) {
-        params.class_id = selectedClass;
+        params.classId = selectedClass;
       }
 
       if (selectedStatus && selectedStatus !== 'all') {
@@ -99,7 +101,7 @@ const AttendanceManagement: React.FC = () => {
       };
 
       if (selectedClass) {
-        params.class_id = selectedClass;
+        params.classId = selectedClass;
       }
 
       const response = await attendanceService.getStats(params);
@@ -160,8 +162,8 @@ const AttendanceManagement: React.FC = () => {
     const csvContent = [
       ['Élève', 'Classe', 'Date', 'Statut', 'Notes'],
       ...attendances.map(att => [
-        `${att.first_name} ${att.last_name}`,
-        att.class_name || '',
+        `${att.firstName} ${att.lastName}`,
+        att.className || '',
         att.date,
         getStatusLabel(att.status),
         att.notes || ''
@@ -176,6 +178,61 @@ const AttendanceManagement: React.FC = () => {
     a.click();
   };
 
+  const openMarkClassModal = async () => {
+    if (!selectedClass) {
+      setError('Veuillez sélectionner une classe');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await classService.getStudents(selectedClass);
+      if (response.success) {
+        const studentsWithStatus = response.data.map((student: any) => ({
+          ...student,
+          status: 'present'
+        }));
+        setStudents(studentsWithStatus);
+        setShowMarkModal(true);
+      }
+    } catch (err: any) {
+      setError('Erreur lors du chargement des élèves');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBulkMarkAttendance = async () => {
+    try {
+      setLoading(true);
+      const attendancesData = students.map(student => ({
+        studentId: student.id,
+        status: student.status,
+        notes: ''
+      }));
+
+      const response = await attendanceService.bulkCreate(selectedClass, selectedDate, attendancesData);
+      if (response.success) {
+        setShowMarkModal(false);
+        loadAttendances();
+        loadStats();
+        setError('');
+      }
+    } catch (err: any) {
+      setError('Erreur lors de l\'enregistrement des présences');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateStudentStatus = (studentId: number, newStatus: string) => {
+    setStudents(prev => prev.map(student =>
+      student.id === studentId ? { ...student, status: newStatus } : student
+    ));
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -184,6 +241,14 @@ const AttendanceManagement: React.FC = () => {
           <p className="text-gray-600">Suivez et gérez les présences des élèves</p>
         </div>
         <div className="flex space-x-3">
+          <button
+            onClick={openMarkClassModal}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            disabled={!selectedClass}
+          >
+            <Users className="h-4 w-4 mr-2" />
+            Marquer toute la classe
+          </button>
           <button
             onClick={handleExport}
             className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
@@ -348,13 +413,13 @@ const AttendanceManagement: React.FC = () => {
                         <div className="flex-shrink-0 h-10 w-10">
                           <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
                             <span className="text-sm font-medium text-gray-700">
-                              {attendance.first_name?.[0]}{attendance.last_name?.[0]}
+                              {attendance.firstName?.[0]}{attendance.lastName?.[0]}
                             </span>
                           </div>
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">
-                            {attendance.first_name} {attendance.last_name}
+                            {attendance.firstName} {attendance.lastName}
                           </div>
                           <div className="text-sm text-gray-500">
                             {attendance.email}
@@ -363,7 +428,7 @@ const AttendanceManagement: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{attendance.class_name || '-'}</div>
+                      <div className="text-sm text-gray-900">{attendance.className || '-'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -399,6 +464,90 @@ const AttendanceManagement: React.FC = () => {
           )}
         </div>
       </div>
+
+      {showMarkModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-900">Marquer les présences - {selectedDate}</h2>
+              <button
+                onClick={() => setShowMarkModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <XCircle className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex gap-2 mb-4">
+                <button
+                  onClick={() => setStudents(prev => prev.map(s => ({ ...s, status: 'present' })))}
+                  className="px-3 py-1 bg-green-100 text-green-800 rounded-lg hover:bg-green-200"
+                >
+                  Tous présents
+                </button>
+                <button
+                  onClick={() => setStudents(prev => prev.map(s => ({ ...s, status: 'absent' })))}
+                  className="px-3 py-1 bg-red-100 text-red-800 rounded-lg hover:bg-red-200"
+                >
+                  Tous absents
+                </button>
+              </div>
+
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Élève</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {students.map((student) => (
+                      <tr key={student.id}>
+                        <td className="px-4 py-3">
+                          <div className="text-sm font-medium text-gray-900">
+                            {student.firstName} {student.lastName}
+                          </div>
+                          <div className="text-sm text-gray-500">{student.email}</div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <select
+                            value={student.status}
+                            onChange={(e) => updateStudentStatus(student.id, e.target.value)}
+                            className="text-sm border border-gray-300 rounded px-3 py-1.5"
+                          >
+                            <option value="present">Présent</option>
+                            <option value="absent">Absent</option>
+                            <option value="late">Retard</option>
+                            <option value="excused">Excusé</option>
+                          </select>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={() => setShowMarkModal(false)}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleBulkMarkAttendance}
+                  disabled={loading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
+                >
+                  {loading ? 'Enregistrement...' : 'Enregistrer'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
