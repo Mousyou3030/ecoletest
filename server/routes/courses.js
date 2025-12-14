@@ -54,10 +54,10 @@ router.get('/', authenticateToken, async (req, res) => {
 router.post('/', authenticateToken, requireRole(['admin', 'teacher']), [
   body('title').isLength({ min: 1 }),
   body('subject').isLength({ min: 1 }),
-  body('teacher_id').isUUID(),
-  body('class_id').isUUID(),
-  body('start_date').isISO8601(),
-  body('end_date').isISO8601()
+  body('teacherId').isUUID(),
+  body('classId').isUUID(),
+  body('startDate').isISO8601(),
+  body('endDate').isISO8601()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -70,12 +70,12 @@ router.post('/', authenticateToken, requireRole(['admin', 'teacher']), [
       });
     }
 
-    const { title, description, subject, teacher_id, class_id, start_date, end_date, materials } = req.body;
+    const { title, description, subject, teacherId, classId, startDate, endDate, materials } = req.body;
 
     const [result] = await pool.execute(
       `INSERT INTO courses (\`id\`, \`title\`, \`description\`, \`subject\`, \`teacherId\`, \`classId\`, \`startDate\`, \`endDate\`, \`materials\`)
        VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [title, description || null, subject, teacher_id, class_id, start_date, end_date, JSON.stringify(materials || [])]
+      [title, description || null, subject, teacherId, classId, startDate, endDate, JSON.stringify(materials || [])]
     );
 
     res.status(201).json({
@@ -92,7 +92,7 @@ router.post('/', authenticateToken, requireRole(['admin', 'teacher']), [
 router.put('/:id', authenticateToken, requireRole(['admin', 'teacher']), async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, subject, teacher_id, class_id, start_date, end_date, materials } = req.body;
+    const { title, description, subject, teacherId, classId, startDate, endDate, materials } = req.body;
 
     let updateFields = [];
     let params = [];
@@ -109,21 +109,21 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'teacher']), async (
       updateFields.push('subject = ?');
       params.push(subject);
     }
-    if (teacher_id) {
+    if (teacherId) {
       updateFields.push('teacherId = ?');
-      params.push(teacher_id);
+      params.push(teacherId);
     }
-    if (class_id) {
+    if (classId) {
       updateFields.push('classId = ?');
-      params.push(class_id);
+      params.push(classId);
     }
-    if (start_date) {
+    if (startDate) {
       updateFields.push('startDate = ?');
-      params.push(start_date);
+      params.push(startDate);
     }
-    if (end_date) {
+    if (endDate) {
       updateFields.push('endDate = ?');
-      params.push(end_date);
+      params.push(endDate);
     }
     if (materials) {
       updateFields.push('materials = ?');
