@@ -101,6 +101,11 @@ export const classService = {
     return response.data;
   },
 
+  getStudents: async (classId: string) => {
+    const response = await api.get(`/classes/${classId}`);
+    return { success: true, data: response.data.students || [] };
+  },
+
   create: async (classData: any) => {
     const response = await api.post('/classes', classData);
     return response.data;

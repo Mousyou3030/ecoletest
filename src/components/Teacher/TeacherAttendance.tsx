@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Calendar, Users, CheckCircle, XCircle, Clock, Save, RefreshCw } from 'lucide-react';
-import { supabaseClassService, supabaseAttendanceService } from '../../services/supabase';
+import { Users, CheckCircle, XCircle, Clock, Save, RefreshCw } from 'lucide-react';
+import { attendanceService, classService } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface Student {
@@ -8,15 +8,10 @@ interface Student {
   firstName: string;
   lastName: string;
   email: string;
-  phone?: string;
-  avatar?: string;
 }
 
 interface AttendanceRecord {
-  id?: string;
-  studentId: string;
-  classId: string;
-  date: string;
+  student_id: string;
   status: 'present' | 'absent' | 'late' | 'excused';
   notes: string;
 }
@@ -54,7 +49,7 @@ const TeacherAttendance: React.FC = () => {
   const loadClasses = async () => {
     try {
       setLoading(true);
-      const classesData = await supabaseClassService.getAll();
+      const classesData = await classService.getAll();
       setClasses(classesData);
       if (classesData.length > 0) {
         setSelectedClass(classesData[0].id);
@@ -70,8 +65,10 @@ const TeacherAttendance: React.FC = () => {
   const loadStudents = async () => {
     try {
       setLoading(true);
-      const studentsData = await supabaseClassService.getStudents(selectedClass);
-      setStudents(studentsData);
+      const response = await classService.getStudents(selectedClass);
+      if (response.success) {
+        setStudents(response.data);
+      }
     } catch (err: any) {
       setError('Erreur lors du chargement des élèves');
       console.error(err);
@@ -83,21 +80,19 @@ const TeacherAttendance: React.FC = () => {
   const loadAttendances = async () => {
     try {
       setLoading(true);
-      const attendancesData = await supabaseAttendanceService.getAll({
-        classId: selectedClass,
+      const response = await attendanceService.getAll({
+        class_id: selectedClass,
         date: selectedDate
       });
 
-      const mappedAttendances = attendancesData.map(att => ({
-        id: att.id,
-        studentId: att.studentId,
-        classId: att.classId,
-        date: att.date.toISOString().split('T')[0],
-        status: att.status,
-        notes: att.notes || ''
-      }));
-
-      setAttendances(mappedAttendances);
+      if (response.success) {
+        const mappedAttendances = response.data.map((att: any) => ({
+          student_id: att.student_id,
+          status: att.status,
+          notes: att.notes || ''
+        }));
+        setAttendances(mappedAttendances);
+      }
     } catch (err: any) {
       setError('Erreur lors du chargement des présences');
       console.error(err);
@@ -108,11 +103,9 @@ const TeacherAttendance: React.FC = () => {
 
   const initializeAttendances = () => {
     const newAttendances: AttendanceRecord[] = students.map(student => {
-      const existing = attendances.find(att => att.studentId === student.id);
+      const existing = attendances.find(att => att.student_id === student.id);
       return existing || {
-        studentId: student.id,
-        classId: selectedClass,
-        date: selectedDate,
+        student_id: student.id,
         status: 'present',
         notes: ''
       };
@@ -123,23 +116,21 @@ const TeacherAttendance: React.FC = () => {
   };
 
   const getStudentAttendance = (studentId: string) => {
-    return attendances.find(att => att.studentId === studentId);
+    return attendances.find(att => att.student_id === studentId);
   };
 
   const updateAttendance = (studentId: string, status: 'present' | 'absent' | 'late' | 'excused', notes?: string) => {
     setAttendances(prev => {
-      const existing = prev.find(att => att.studentId === studentId);
+      const existing = prev.find(att => att.student_id === studentId);
       if (existing) {
         return prev.map(att =>
-          att.studentId === studentId
+          att.student_id === studentId
             ? { ...att, status, notes: notes !== undefined ? notes : att.notes }
             : att
         );
       } else {
         return [...prev, {
-          studentId,
-          classId: selectedClass,
-          date: selectedDate,
+          student_id: studentId,
           status,
           notes: notes || ''
         }];
@@ -187,22 +178,19 @@ const TeacherAttendance: React.FC = () => {
       setSaving(true);
       setError('');
 
-      const attendancesData = attendances.map(att => ({
-        studentId: att.studentId,
-        courseId: null,
-        classId: selectedClass,
-        date: selectedDate,
-        status: att.status,
-        notes: att.notes,
-        markedBy: user.id
-      }));
+      const response = await attendanceService.bulkCreate(
+        selectedClass,
+        selectedDate,
+        attendances
+      );
 
-      await supabaseAttendanceService.bulkCreate(attendancesData);
-      setSuccessMessage('Présences sauvegardées avec succès !');
-      setTimeout(() => setSuccessMessage(''), 3000);
-      await loadAttendances();
+      if (response.success) {
+        setSuccessMessage(response.message || 'Présences sauvegardées avec succès !');
+        setTimeout(() => setSuccessMessage(''), 3000);
+        await loadAttendances();
+      }
     } catch (err: any) {
-      setError('Erreur lors de la sauvegarde des présences: ' + err.message);
+      setError('Erreur lors de la sauvegarde des présences');
       console.error(err);
     } finally {
       setSaving(false);

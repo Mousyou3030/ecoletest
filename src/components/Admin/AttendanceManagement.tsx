@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Calendar, Users, CheckCircle, XCircle, Clock, Filter, Download } from 'lucide-react';
-import { supabaseAttendanceService, supabaseClassService } from '../../services/supabase';
+import { attendanceService, classService } from '../../services/api';
 
 interface Student {
-  id: string;
+  id: number;
   first_name: string;
   last_name: string;
   email: string;
@@ -11,9 +11,9 @@ interface Student {
 }
 
 interface AttendanceRecord {
-  id: string;
-  student_id: string;
-  class_id?: string;
+  id: number;
+  student_id: number;
+  class_id?: number;
   date: string;
   status: 'present' | 'absent' | 'late' | 'excused';
   notes?: string;
@@ -54,16 +54,10 @@ const AttendanceManagement: React.FC = () => {
 
   const loadClasses = async () => {
     try {
-      const classesData = await supabaseClassService.getAll();
-      const mappedClasses = classesData.map(cls => ({
-        id: cls.id,
-        name: cls.name,
-        level: cls.level,
-        teacher_id: cls.teacherId
-      }));
-      setClasses(mappedClasses);
-      if (mappedClasses.length > 0) {
-        setSelectedClass(mappedClasses[0].id.toString());
+      const classesData = await classService.getAll();
+      setClasses(classesData);
+      if (classesData.length > 0) {
+        setSelectedClass(classesData[0].id.toString());
       }
     } catch (err: any) {
       setError('Erreur lors du chargement des classes');
@@ -79,30 +73,17 @@ const AttendanceManagement: React.FC = () => {
       };
 
       if (selectedClass) {
-        params.classId = selectedClass;
+        params.class_id = selectedClass;
       }
 
-      const attendancesData = await supabaseAttendanceService.getAll(params);
-
-      let filteredData = attendancesData;
       if (selectedStatus && selectedStatus !== 'all') {
-        filteredData = attendancesData.filter(att => att.status === selectedStatus);
+        params.status = selectedStatus;
       }
 
-      const mappedAttendances = filteredData.map(att => ({
-        id: att.id,
-        student_id: att.studentId,
-        class_id: att.classId,
-        date: att.date.toISOString().split('T')[0],
-        status: att.status,
-        notes: att.notes || '',
-        first_name: att.student?.first_name,
-        last_name: att.student?.last_name,
-        email: att.student?.email,
-        class_name: att.class?.name
-      }));
-
-      setAttendances(mappedAttendances);
+      const response = await attendanceService.getAll(params);
+      if (response.success) {
+        setAttendances(response.data);
+      }
     } catch (err: any) {
       setError('Erreur lors du chargement des présences');
       console.error(err);
@@ -118,11 +99,13 @@ const AttendanceManagement: React.FC = () => {
       };
 
       if (selectedClass) {
-        params.classId = selectedClass;
+        params.class_id = selectedClass;
       }
 
-      const statsData = await supabaseAttendanceService.getStats(params);
-      setStats(statsData);
+      const response = await attendanceService.getStats(params);
+      if (response.success) {
+        setStats(response.data);
+      }
     } catch (err: any) {
       console.error('Erreur lors du chargement des statistiques:', err);
     }
@@ -158,13 +141,15 @@ const AttendanceManagement: React.FC = () => {
     }
   };
 
-  const updateAttendanceStatus = async (attendanceId: string, newStatus: string) => {
+  const updateAttendanceStatus = async (attendanceId: number, newStatus: string) => {
     try {
-      await supabaseAttendanceService.update(attendanceId, { status: newStatus });
-      setAttendances(prev => prev.map(att =>
-        att.id === attendanceId ? { ...att, status: newStatus as any } : att
-      ));
-      loadStats();
+      const response = await attendanceService.update(attendanceId.toString(), { status: newStatus });
+      if (response.success) {
+        setAttendances(prev => prev.map(att =>
+          att.id === attendanceId ? { ...att, status: newStatus as any } : att
+        ));
+        loadStats();
+      }
     } catch (err: any) {
       setError('Erreur lors de la mise à jour du statut');
       console.error(err);
@@ -215,7 +200,6 @@ const AttendanceManagement: React.FC = () => {
         </div>
       )}
 
-      {/* Filters */}
       <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
@@ -266,7 +250,6 @@ const AttendanceManagement: React.FC = () => {
         </div>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
           <div className="flex items-center">
@@ -325,7 +308,6 @@ const AttendanceManagement: React.FC = () => {
         </div>
       </div>
 
-      {/* Attendance Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           {loading ? (
