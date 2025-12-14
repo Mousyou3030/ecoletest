@@ -12,11 +12,11 @@ router.get('/', authenticateToken, async (req, res) => {
     
     let query = `
       SELECT c.*,
-             CONCAT(u.\`first_name\`, ' ', u.\`last_name\`) as teacherName,
+             CONCAT(u.\`firstName\`, ' ', u.\`lastName\`) as teacherName,
              cl.\`name\` as className
       FROM courses c
-      LEFT JOIN users u ON c.\`teacher_id\` = u.\`id\`
-      LEFT JOIN classes cl ON c.\`class_id\` = cl.\`id\`
+      LEFT JOIN users u ON c.\`teacherId\` = u.\`id\`
+      LEFT JOIN classes cl ON c.\`classId\` = cl.\`id\`
       WHERE 1=1
     `;
     let params = [];
@@ -69,7 +69,7 @@ router.post('/', authenticateToken, requireRole(['admin', 'teacher']), [
     const { title, description, subject, teacher_id, class_id, start_date, end_date, materials } = req.body;
 
     const [result] = await pool.execute(
-      `INSERT INTO courses (\`id\`, \`title\`, \`description\`, \`subject\`, \`teacher_id\`, \`class_id\`, \`start_date\`, \`end_date\`, \`materials\`)
+      `INSERT INTO courses (\`id\`, \`title\`, \`description\`, \`subject\`, \`teacherId\`, \`classId\`, \`startDate\`, \`endDate\`, \`materials\`)
        VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?)`,
       [title, description || null, subject, teacher_id, class_id, start_date, end_date, JSON.stringify(materials || [])]
     );

@@ -12,7 +12,7 @@ router.get('/', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
     const { role, search, page, limit } = req.query;
 
-    let query = 'SELECT id, email, first_name, last_name, role, phone, address, date_of_birth, created_at FROM users WHERE 1=1';
+    let query = 'SELECT id, email, firstName, lastName, role, phone, address, dateOfBirth, createdAt FROM users WHERE 1=1';
     let params = [];
 
     if (role && role !== 'all') {
@@ -21,11 +21,11 @@ router.get('/', authenticateToken, requireRole(['admin']), async (req, res) => {
     }
 
     if (search) {
-      query += ' AND (first_name LIKE ? OR last_name LIKE ? OR email LIKE ?)';
+      query += ' AND (firstName LIKE ? OR lastName LIKE ? OR email LIKE ?)';
       params.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
 
-    query += ' ORDER BY created_at DESC';
+    query += ' ORDER BY createdAt DESC';
 
     // Only add pagination if both page and limit are provided
     if (page && limit) {
@@ -47,7 +47,7 @@ router.get('/', authenticateToken, requireRole(['admin']), async (req, res) => {
     }
 
     if (search) {
-      countQuery += ' AND (first_name LIKE ? OR last_name LIKE ? OR email LIKE ?)';
+      countQuery += ' AND (firstName LIKE ? OR lastName LIKE ? OR email LIKE ?)';
       countParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
 
@@ -80,7 +80,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     }
 
     const [users] = await pool.execute(
-      'SELECT id, email, first_name, last_name, role, phone, address, date_of_birth, created_at FROM users WHERE id = ?',
+      'SELECT id, email, firstName, lastName, role, phone, address, dateOfBirth, createdAt FROM users WHERE id = ?',
       [id]
     );
 
@@ -98,8 +98,8 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // Créer un utilisateur
 router.post('/', authenticateToken, requireRole(['admin']), [
   body('email').isEmail().normalizeEmail(),
-  body('first_name').isLength({ min: 1 }),
-  body('last_name').isLength({ min: 1 }),
+  body('firstName').isLength({ min: 1 }),
+  body('lastName').isLength({ min: 1 }),
   body('role').isIn(['admin', 'teacher', 'student', 'parent'])
 ], async (req, res) => {
   try {
@@ -108,7 +108,7 @@ router.post('/', authenticateToken, requireRole(['admin']), [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { email, first_name, last_name, role, phone, address, date_of_birth } = req.body;
+    const { email, firstName, lastName, role, phone, address, dateOfBirth } = req.body;
 
     // Vérifier si l'email existe déjà
     const [existingUsers] = await pool.execute(
@@ -126,9 +126,9 @@ router.post('/', authenticateToken, requireRole(['admin']), [
     const userId = uuidv4();
 
     const [result] = await pool.execute(
-      `INSERT INTO users (id, email, password, first_name, last_name, role, phone, address, date_of_birth)
+      `INSERT INTO users (id, email, password, firstName, lastName, role, phone, address, dateOfBirth)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [userId, email, hashedPassword, first_name, last_name, role, phone, address, date_of_birth]
+      [userId, email, hashedPassword, firstName, lastName, role, phone, address, dateOfBirth]
     );
 
     res.status(201).json({
@@ -145,8 +145,8 @@ router.post('/', authenticateToken, requireRole(['admin']), [
 // Mettre à jour un utilisateur
 router.put('/:id', authenticateToken, [
   body('email').optional().isEmail().normalizeEmail(),
-  body('first_name').optional().isLength({ min: 1 }),
-  body('last_name').optional().isLength({ min: 1 }),
+  body('firstName').optional().isLength({ min: 1 }),
+  body('lastName').optional().isLength({ min: 1 }),
   body('role').optional().isIn(['admin', 'teacher', 'student', 'parent'])
 ], async (req, res) => {
   try {
@@ -162,7 +162,7 @@ router.put('/:id', authenticateToken, [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { email, first_name, last_name, role, phone, address, date_of_birth } = req.body;
+    const { email, firstName, lastName, role, phone, address, dateOfBirth } = req.body;
 
     // Construire la requête de mise à jour
     let updateFields = [];
@@ -172,13 +172,13 @@ router.put('/:id', authenticateToken, [
       updateFields.push('email = ?');
       params.push(email);
     }
-    if (first_name) {
-      updateFields.push('first_name = ?');
-      params.push(first_name);
+    if (firstName) {
+      updateFields.push('firstName = ?');
+      params.push(firstName);
     }
-    if (last_name) {
-      updateFields.push('last_name = ?');
-      params.push(last_name);
+    if (lastName) {
+      updateFields.push('lastName = ?');
+      params.push(lastName);
     }
     if (role && req.user.role === 'admin') {
       updateFields.push('role = ?');
@@ -192,9 +192,9 @@ router.put('/:id', authenticateToken, [
       updateFields.push('address = ?');
       params.push(address);
     }
-    if (date_of_birth) {
-      updateFields.push('date_of_birth = ?');
-      params.push(date_of_birth);
+    if (dateOfBirth) {
+      updateFields.push('dateOfBirth = ?');
+      params.push(dateOfBirth);
     }
 
     if (updateFields.length === 0) {
@@ -283,9 +283,9 @@ router.delete('/:id', authenticateToken, requireRole(['admin']), async (req, res
       return res.status(404).json({ error: 'Utilisateur non trouvé' });
     }
 
-    // Supprimer l'utilisateur
+    // Désactiver l'utilisateur
     await pool.execute(
-      'DELETE FROM users WHERE id = ?',
+      'UPDATE users SET isActive = 0 WHERE id = ?',
       [id]
     );
 

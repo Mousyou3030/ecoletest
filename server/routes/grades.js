@@ -8,38 +8,38 @@ const router = express.Router();
 // Obtenir toutes les notes
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const { student_id, course_id, teacher_id, type, class_id } = req.query;
+    const { studentId, courseId, teacherId, type, classId } = req.query;
     
     let query = `
       SELECT g.*, 
-             CONCAT(s.first_name, ' ', s.last_name) as studentName,
-             CONCAT(t.first_name, ' ', t.last_name) as teacherName,
+             CONCAT(s.firstName, ' ', s.lastName) as studentName,
+             CONCAT(t.firstName, ' ', t.lastName) as teacherName,
              c.title as courseTitle,
              c.subject,
              cl.name as className
       FROM grades g
-      LEFT JOIN users s ON g.student_id = s.id
-      LEFT JOIN users t ON g.teacher_id = t.id
-      LEFT JOIN courses c ON g.course_id = c.id
-      LEFT JOIN student_classes sc ON s.id = sc.student_id
-      LEFT JOIN classes cl ON sc.class_id = cl.id
+      LEFT JOIN users s ON g.studentId = s.id
+      LEFT JOIN users t ON g.teacherId = t.id
+      LEFT JOIN courses c ON g.courseId = c.id
+      LEFT JOIN student_classes sc ON s.id = sc.studentId
+      LEFT JOIN classes cl ON sc.classId = cl.id
       WHERE 1=1
     `;
     let params = [];
 
-    if (student_id) {
-      query += ' AND g.student_id = ?';
-      params.push(student_id);
+    if (studentId) {
+      query += ' AND g.studentId = ?';
+      params.push(studentId);
     }
 
-    if (course_id) {
-      query += ' AND g.course_id = ?';
-      params.push(course_id);
+    if (courseId) {
+      query += ' AND g.courseId = ?';
+      params.push(courseId);
     }
 
-    if (teacher_id) {
-      query += ' AND g.teacher_id = ?';
-      params.push(teacher_id);
+    if (teacherId) {
+      query += ' AND g.teacherId = ?';
+      params.push(teacherId);
     }
 
     if (type && type !== 'all') {
@@ -47,9 +47,9 @@ router.get('/', authenticateToken, async (req, res) => {
       params.push(type);
     }
 
-    if (class_id) {
+    if (classId) {
       query += ' AND cl.id = ?';
-      params.push(class_id);
+      params.push(classId);
     }
 
     query += ' ORDER BY g.date DESC';
@@ -64,10 +64,10 @@ router.get('/', authenticateToken, async (req, res) => {
 
 // Créer une note
 router.post('/', authenticateToken, requireRole(['admin', 'teacher']), [
-  body('student_id').isUUID(),
-  body('course_id').isUUID(),
+  body('studentId').isUUID(),
+  body('courseId').isUUID(),
   body('value').isFloat({ min: 0 }),
-  body('max_value').isFloat({ min: 0.1 }),
+  body('maxValue').isFloat({ min: 0.1 }),
   body('type').isIn(['exam', 'homework', 'participation', 'project']),
   body('date').isISO8601()
 ], async (req, res) => {
@@ -77,13 +77,13 @@ router.post('/', authenticateToken, requireRole(['admin', 'teacher']), [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { student_id, course_id, value, max_value, type, date, comments } = req.body;
-    const teacher_id = req.user.id;
+    const { studentId, courseId, value, maxValue, type, date, comments } = req.body;
+    const teacherId = req.user.id;
 
     const [result] = await pool.execute(
-      `INSERT INTO grades (\`id\`, \`student_id\`, \`course_id\`, \`teacher_id\`, \`value\`, \`max_value\`, \`type\`, \`date\`, \`comments\`)
+      `INSERT INTO grades (\`id\`, \`studentId\`, \`courseId\`, \`teacherId\`, \`value\`, \`maxValue\`, \`type\`, \`date\`, \`comments\`)
        VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [student_id, course_id, teacher_id, value, max_value, type, date, comments || null]
+      [studentId, courseId, teacherId, value, maxValue, type, date, comments || null]
     );
 
     res.status(201).json({
@@ -100,7 +100,7 @@ router.post('/', authenticateToken, requireRole(['admin', 'teacher']), [
 router.put('/:id', authenticateToken, requireRole(['admin', 'teacher']), async (req, res) => {
   try {
     const { id } = req.params;
-    const { value, max_value, type, date, comments } = req.body;
+    const { value, maxValue, type, date, comments } = req.body;
 
     let updateFields = [];
     let params = [];
@@ -109,9 +109,9 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'teacher']), async (
       updateFields.push('`value` = ?');
       params.push(value);
     }
-    if (max_value !== undefined) {
-      updateFields.push('`max_value` = ?');
-      params.push(max_value);
+    if (maxValue !== undefined) {
+      updateFields.push('`maxValue` = ?');
+      params.push(maxValue);
     }
     if (type) {
       updateFields.push('`type` = ?');

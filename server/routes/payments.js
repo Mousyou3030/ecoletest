@@ -8,16 +8,16 @@ const router = express.Router();
 // Obtenir tous les paiements
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const { status, type, student_id } = req.query;
+    const { status, type, studentId } = req.query;
     
     let query = `
       SELECT p.*, 
-             CONCAT(u.first_name, ' ', u.last_name) as studentName,
+             CONCAT(u.firstName, ' ', u.lastName) as studentName,
              c.name as className
       FROM payments p
-      LEFT JOIN users u ON p.student_id = u.id
-      LEFT JOIN student_classes sc ON u.id = sc.student_id
-      LEFT JOIN classes c ON sc.class_id = c.id
+      LEFT JOIN users u ON p.studentId = u.id
+      LEFT JOIN student_classes sc ON u.id = sc.studentId
+      LEFT JOIN classes c ON sc.classId = c.id
       WHERE 1=1
     `;
     let params = [];
@@ -32,12 +32,12 @@ router.get('/', authenticateToken, async (req, res) => {
       params.push(type);
     }
 
-    if (student_id) {
-      query += ' AND p.student_id = ?';
-      params.push(student_id);
+    if (studentId) {
+      query += ' AND p.studentId = ?';
+      params.push(studentId);
     }
 
-    query += ' ORDER BY p.created_at DESC';
+    query += ' ORDER BY p.createdAt DESC';
 
     const [payments] = await pool.execute(query, params);
     res.json(payments);
@@ -49,10 +49,10 @@ router.get('/', authenticateToken, async (req, res) => {
 
 // Créer un paiement
 router.post('/', authenticateToken, requireRole(['admin']), [
-  body('student_id').isUUID(),
+  body('studentId').isUUID(),
   body('amount').isFloat({ min: 0 }),
   body('type').isIn(['tuition', 'canteen', 'transport', 'materials', 'other']),
-  body('due_date').isISO8601()
+  body('dueDate').isISO8601()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -60,12 +60,12 @@ router.post('/', authenticateToken, requireRole(['admin']), [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { student_id, amount, type, due_date, description, status } = req.body;
+    const { studentId, amount, type, dueDate, description, status } = req.body;
 
     const [result] = await pool.execute(
-      `INSERT INTO payments (id, student_id, amount, type, due_date, description, status) 
+      `INSERT INTO payments (id, studentId, amount, type, dueDate, description, status) 
        VALUES (UUID(), ?, ?, ?, ?, ?, ?)`,
-      [student_id, amount, type, due_date, description || null, status || 'pending']
+      [studentId, amount, type, dueDate, description || null, status || 'pending']
     );
 
     res.status(201).json({
@@ -82,7 +82,7 @@ router.post('/', authenticateToken, requireRole(['admin']), [
 router.put('/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, paid_date, method } = req.body;
+    const { status, paidDate, method } = req.body;
 
     let updateFields = [];
     let params = [];
@@ -91,9 +91,9 @@ router.put('/:id', authenticateToken, requireRole(['admin']), async (req, res) =
       updateFields.push('status = ?');
       params.push(status);
     }
-    if (paid_date) {
-      updateFields.push('paid_date = ?');
-      params.push(paid_date);
+    if (paidDate) {
+      updateFields.push('paidDate = ?');
+      params.push(paidDate);
     }
     if (method) {
       updateFields.push('method = ?');
