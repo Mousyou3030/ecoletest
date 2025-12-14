@@ -16,7 +16,7 @@ router.get('/', authenticateToken, async (req, res) => {
              COUNT(sc.studentId) as studentCount
       FROM classes c
       LEFT JOIN users u ON c.teacherId = u.id
-      LEFT JOIN class_students sc ON c.id = sc.classId
+      LEFT JOIN student_classes sc ON c.id = sc.classId AND sc.isActive = TRUE
       WHERE 1=1
     `;
     let params = [];
@@ -33,15 +33,11 @@ router.get('/', authenticateToken, async (req, res) => {
 
     query += ' GROUP BY c.id ORDER BY c.level, c.name';
 
-    console.log('Classes Query:', query);
-    console.log('Classes Params:', params);
     const [classes] = await pool.execute(query, params);
-    console.log('Classes Found:', classes.length);
     res.json(classes);
   } catch (error) {
     console.error('Erreur lors de la récupération des classes:', error);
-    console.error('Error details:', error.message);
-    res.status(500).json({ error: 'Erreur serveur', details: error.message });
+    res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -56,7 +52,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
              COUNT(sc.studentId) as studentCount
       FROM classes c
       LEFT JOIN users u ON c.teacherId = u.id
-      LEFT JOIN class_students sc ON c.id = sc.classId
+      LEFT JOIN student_classes sc ON c.id = sc.classId AND sc.isActive = TRUE
       WHERE c.id = ?
       GROUP BY c.id
     `, [id]);
@@ -67,10 +63,10 @@ router.get('/:id', authenticateToken, async (req, res) => {
 
     // Récupérer les élèves de la classe
     const [students] = await pool.execute(`
-      SELECT u.id, u.firstName as firstName, u.lastName as lastName, u.email, sc.enrollmentDate as enrollmentDate
+      SELECT u.id, u.firstName, u.lastName, u.email, sc.enrollmentDate
       FROM users u
-      JOIN class_students sc ON u.id = sc.studentId
-      WHERE sc.classId = ?
+      JOIN student_classes sc ON u.id = sc.studentId
+      WHERE sc.classId = ? AND sc.isActive = TRUE AND u.isActive = TRUE
       ORDER BY u.lastName, u.firstName
     `, [id]);
 
@@ -206,7 +202,7 @@ router.post('/:id/students', authenticateToken, requireRole(['admin']), [
 
     // Vérifier que l'élève existe et est bien un élève
     const [students] = await pool.execute(
-      'SELECT id FROM users WHERE id = ? AND role = "student"',
+      'SELECT id FROM users WHERE id = ? AND role = "student" AND isActive = TRUE',
       [studentId]
     );
 
@@ -216,7 +212,7 @@ router.post('/:id/students', authenticateToken, requireRole(['admin']), [
 
     // Vérifier que l'élève n'est pas déjà dans la classe
     const [existing] = await pool.execute(
-      'SELECT id FROM class_students WHERE studentId = ? AND classId = ?',
+      'SELECT id FROM student_classes WHERE studentId = ? AND classId = ? AND isActive = TRUE',
       [studentId, id]
     );
 
@@ -225,7 +221,7 @@ router.post('/:id/students', authenticateToken, requireRole(['admin']), [
     }
 
     await pool.execute(
-      'INSERT INTO class_students (studentId, classId) VALUES (?, ?)',
+      'INSERT INTO student_classes (studentId, classId) VALUES (?, ?)',
       [studentId, id]
     );
 
@@ -242,7 +238,7 @@ router.delete('/:id/students/:studentId', authenticateToken, requireRole(['admin
     const { id, studentId } = req.params;
 
     await pool.execute(
-      'DELETE FROM class_students WHERE studentId = ? AND classId = ?',
+      'UPDATE student_classes SET isActive = FALSE WHERE studentId = ? AND classId = ?',
       [studentId, id]
     );
 

@@ -9,7 +9,7 @@ const router = express.Router();
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const { studentId, courseId, teacherId, type, classId } = req.query;
-    
+
     let query = `
       SELECT g.*,
              CONCAT(s.firstName, ' ', s.lastName) as studentName,
@@ -21,8 +21,8 @@ router.get('/', authenticateToken, async (req, res) => {
       LEFT JOIN users s ON g.studentId = s.id
       LEFT JOIN users t ON g.teacherId = t.id
       LEFT JOIN courses c ON g.courseId = c.id
-      LEFT JOIN class_students cs ON s.id = cs.studentId
-      LEFT JOIN classes cl ON cs.classId = cl.id
+      LEFT JOIN student_classes sc ON s.id = sc.studentId AND sc.isActive = TRUE
+      LEFT JOIN classes cl ON sc.classId = cl.id
       WHERE 1=1
     `;
     let params = [];
@@ -54,15 +54,11 @@ router.get('/', authenticateToken, async (req, res) => {
 
     query += ' ORDER BY g.date DESC';
 
-    console.log('Grades Query:', query);
-    console.log('Grades Params:', params);
     const [grades] = await pool.execute(query, params);
-    console.log('Grades Found:', grades.length);
     res.json(grades);
   } catch (error) {
     console.error('Erreur lors de la récupération des notes:', error);
-    console.error('Error details:', error.message);
-    res.status(500).json({ error: 'Erreur serveur', details: error.message });
+    res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
