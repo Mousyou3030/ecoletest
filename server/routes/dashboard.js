@@ -91,7 +91,7 @@ router.get('/student/:studentId', authenticateToken, async (req, res) => {
        JOIN courses co ON s.course_id = co.id
        JOIN users u ON co.teacher_id = u.id
        JOIN student_classes cs ON s.class_id = cs.class_id
-       WHERE cs.student_id = ? AND cs.is_active = TRUE
+       WHERE cs.student_id = ?
        AND s.day_of_week = DAYOFWEEK(CURRENT_DATE)
        AND s.start_time > CURRENT_TIME
        ORDER BY s.start_time
@@ -180,7 +180,7 @@ router.get('/teacher/:teacherId', authenticateToken, async (req, res) => {
       `SELECT COUNT(DISTINCT cs.student_id) as count
        FROM student_classes cs
        JOIN courses co ON cs.class_id = co.class_id
-       WHERE co.teacher_id = ? AND cs.is_active = TRUE`,
+       WHERE co.teacher_id = ?`,
       [teacherId]
     );
 
@@ -246,7 +246,7 @@ router.get('/parent/:parentId', authenticateToken, async (req, res) => {
        JOIN parent_children pc ON u.id = pc.child_id
        JOIN student_classes cs ON u.id = cs.student_id
        JOIN classes c ON cs.class_id = c.id
-       WHERE pc.parent_id = ? AND cs.is_active = TRUE`,
+       WHERE pc.parent_id = ?`,
       [parentId]
     );
 

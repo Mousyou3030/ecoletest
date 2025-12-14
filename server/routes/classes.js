@@ -16,7 +16,7 @@ router.get('/', authenticateToken, async (req, res) => {
              COUNT(sc.student_id) as studentCount
       FROM classes c
       LEFT JOIN users u ON c.teacher_id = u.id
-      LEFT JOIN student_classes sc ON c.id = sc.class_id AND sc.is_active = TRUE
+      LEFT JOIN student_classes sc ON c.id = sc.class_id
       WHERE 1=1
     `;
     let params = [];
@@ -52,7 +52,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
              COUNT(sc.student_id) as studentCount
       FROM classes c
       LEFT JOIN users u ON c.teacher_id = u.id
-      LEFT JOIN student_classes sc ON c.id = sc.class_id AND sc.is_active = TRUE
+      LEFT JOIN student_classes sc ON c.id = sc.class_id
       WHERE c.id = ?
       GROUP BY c.id
     `, [id]);
@@ -66,7 +66,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
       SELECT u.id, u.first_name as firstName, u.last_name as lastName, u.email, sc.enrollment_date as enrollmentDate
       FROM users u
       JOIN student_classes sc ON u.id = sc.student_id
-      WHERE sc.class_id = ? AND sc.is_active = TRUE AND u.is_active = TRUE
+      WHERE sc.class_id = ?
       ORDER BY u.last_name, u.first_name
     `, [id]);
 
@@ -202,7 +202,7 @@ router.post('/:id/students', authenticateToken, requireRole(['admin']), [
 
     // Vérifier que l'élève existe et est bien un élève
     const [students] = await pool.execute(
-      'SELECT id FROM users WHERE id = ? AND role = "student" AND is_active = TRUE',
+      'SELECT id FROM users WHERE id = ? AND role = "student"',
       [studentId]
     );
 
@@ -212,7 +212,7 @@ router.post('/:id/students', authenticateToken, requireRole(['admin']), [
 
     // Vérifier que l'élève n'est pas déjà dans la classe
     const [existing] = await pool.execute(
-      'SELECT id FROM student_classes WHERE student_id = ? AND class_id = ? AND is_active = TRUE',
+      'SELECT id FROM student_classes WHERE student_id = ? AND class_id = ?',
       [studentId, id]
     );
 
@@ -238,7 +238,7 @@ router.delete('/:id/students/:studentId', authenticateToken, requireRole(['admin
     const { id, studentId } = req.params;
 
     await pool.execute(
-      'UPDATE student_classes SET is_active = FALSE WHERE student_id = ? AND class_id = ?',
+      'DELETE FROM student_classes WHERE student_id = ? AND class_id = ?',
       [studentId, id]
     );
 

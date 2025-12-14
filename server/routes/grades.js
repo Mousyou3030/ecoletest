@@ -21,7 +21,7 @@ router.get('/', authenticateToken, async (req, res) => {
       LEFT JOIN users s ON g.student_id = s.id
       LEFT JOIN users t ON g.teacher_id = t.id
       LEFT JOIN courses c ON g.course_id = c.id
-      LEFT JOIN student_classes sc ON s.id = sc.student_id AND sc.is_active = TRUE
+      LEFT JOIN student_classes sc ON s.id = sc.student_id
       LEFT JOIN classes cl ON sc.class_id = cl.id
       WHERE 1=1
     `;

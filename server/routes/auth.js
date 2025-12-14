@@ -22,7 +22,7 @@ router.post('/login', [
 
     // Rechercher l'utilisateur
     const [users] = await pool.execute(
-      'SELECT * FROM users WHERE email = ? AND is_active = TRUE',
+      'SELECT * FROM users WHERE email = ?',
       [email]
     );
 

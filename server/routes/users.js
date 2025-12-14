@@ -12,7 +12,7 @@ router.get('/', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
     const { role, search, page, limit } = req.query;
 
-    let query = 'SELECT id, email, first_name, last_name, role, phone, address, date_of_birth, is_active, created_at FROM users WHERE 1=1';
+    let query = 'SELECT id, email, first_name, last_name, role, phone, address, date_of_birth, created_at FROM users WHERE 1=1';
     let params = [];
 
     if (role && role !== 'all') {
@@ -80,7 +80,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     }
 
     const [users] = await pool.execute(
-      'SELECT id, email, first_name, last_name, role, phone, address, date_of_birth, is_active, created_at FROM users WHERE id = ?',
+      'SELECT id, email, first_name, last_name, role, phone, address, date_of_birth, created_at FROM users WHERE id = ?',
       [id]
     );
 
@@ -283,9 +283,9 @@ router.delete('/:id', authenticateToken, requireRole(['admin']), async (req, res
       return res.status(404).json({ error: 'Utilisateur non trouvé' });
     }
 
-    // Désactiver plutôt que supprimer
+    // Supprimer l'utilisateur
     await pool.execute(
-      'UPDATE users SET is_active = FALSE WHERE id = ?',
+      'DELETE FROM users WHERE id = ?',
       [id]
     );
 

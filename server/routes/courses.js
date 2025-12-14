@@ -17,7 +17,7 @@ router.get('/', authenticateToken, async (req, res) => {
       FROM courses c
       LEFT JOIN users u ON c.\`teacher_id\` = u.\`id\`
       LEFT JOIN classes cl ON c.\`class_id\` = cl.\`id\`
-      WHERE c.\`is_active\` = TRUE
+      WHERE 1=1
     `;
     let params = [];
 
@@ -150,7 +150,7 @@ router.delete('/:id', authenticateToken, requireRole(['admin']), async (req, res
     const { id } = req.params;
 
     await pool.execute(
-      'UPDATE courses SET is_active = FALSE WHERE id = ?',
+      'DELETE FROM courses WHERE id = ?',
       [id]
     );
 

@@ -17,7 +17,7 @@ router.get('/', authenticateToken, async (req, res) => {
       FROM schedules s
       LEFT JOIN users u ON s.teacher_id = u.id
       LEFT JOIN classes c ON s.class_id = c.id
-      WHERE s.is_active = TRUE
+      WHERE 1=1
     `;
     let params = [];
 
@@ -68,7 +68,7 @@ router.post('/', authenticateToken, requireRole(['admin']), [
       `SELECT id FROM schedules 
        WHERE ((teacher_id = ? AND day = ? AND start_time < ? AND end_time > ?) 
               OR (class_id = ? AND day = ? AND start_time < ? AND end_time > ?))
-       AND is_active = TRUE`,
+`,
       [teacher_id, day, end_time, start_time, class_id, day, end_time, start_time]
     );
 
@@ -98,7 +98,7 @@ router.delete('/:id', authenticateToken, requireRole(['admin']), async (req, res
     const { id } = req.params;
 
     await pool.execute(
-      'UPDATE schedules SET is_active = FALSE WHERE id = ?',
+      'DELETE FROM schedules WHERE id = ?',
       [id]
     );
 
