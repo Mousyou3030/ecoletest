@@ -11,18 +11,18 @@ router.get('/', authenticateToken, async (req, res) => {
     const { teacherId, level } = req.query;
     
     let query = `
-      SELECT c.*, 
-             CONCAT(u.firstName, ' ', u.lastName) as teacherName,
-             COUNT(sc.studentId) as studentCount
+      SELECT c.*,
+             CONCAT(u.first_name, ' ', u.last_name) as teacherName,
+             COUNT(sc.student_id) as studentCount
       FROM classes c
-      LEFT JOIN users u ON c.teacherId = u.id
-      LEFT JOIN student_classes sc ON c.id = sc.classId AND sc.isActive = TRUE
+      LEFT JOIN users u ON c.teacher_id = u.id
+      LEFT JOIN student_classes sc ON c.id = sc.class_id AND sc.is_active = TRUE
       WHERE 1=1
     `;
     let params = [];
 
     if (teacherId) {
-      query += ' AND c.teacherId = ?';
+      query += ' AND c.teacher_id = ?';
       params.push(teacherId);
     }
 
@@ -47,12 +47,12 @@ router.get('/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
 
     const [classes] = await pool.execute(`
-      SELECT c.*, 
-             CONCAT(u.firstName, ' ', u.lastName) as teacherName,
-             COUNT(sc.studentId) as studentCount
+      SELECT c.*,
+             CONCAT(u.first_name, ' ', u.last_name) as teacherName,
+             COUNT(sc.student_id) as studentCount
       FROM classes c
-      LEFT JOIN users u ON c.teacherId = u.id
-      LEFT JOIN student_classes sc ON c.id = sc.classId AND sc.isActive = TRUE
+      LEFT JOIN users u ON c.teacher_id = u.id
+      LEFT JOIN student_classes sc ON c.id = sc.class_id AND sc.is_active = TRUE
       WHERE c.id = ?
       GROUP BY c.id
     `, [id]);
@@ -63,11 +63,11 @@ router.get('/:id', authenticateToken, async (req, res) => {
 
     // Récupérer les élèves de la classe
     const [students] = await pool.execute(`
-      SELECT u.id, u.firstName, u.lastName, u.email, sc.enrollmentDate
+      SELECT u.id, u.first_name as firstName, u.last_name as lastName, u.email, sc.enrollment_date as enrollmentDate
       FROM users u
-      JOIN student_classes sc ON u.id = sc.studentId
-      WHERE sc.classId = ? AND sc.isActive = TRUE AND u.isActive = TRUE
-      ORDER BY u.lastName, u.firstName
+      JOIN student_classes sc ON u.id = sc.student_id
+      WHERE sc.class_id = ? AND sc.is_active = TRUE AND u.is_active = TRUE
+      ORDER BY u.last_name, u.first_name
     `, [id]);
 
     const classData = {
@@ -97,7 +97,7 @@ router.post('/', authenticateToken, requireRole(['admin']), [
     const { name, level, teacherId, capacity, description } = req.body;
 
     const [result] = await pool.execute(
-      'INSERT INTO classes (name, level, teacherId, capacity, description) VALUES (?, ?, ?, ?, ?)',
+      'INSERT INTO classes (name, level, teacher_id, capacity, description) VALUES (?, ?, ?, ?, ?)',
       [name, level, teacherId || null, capacity || 30, description || null]
     );
 
@@ -138,7 +138,7 @@ router.put('/:id', authenticateToken, requireRole(['admin']), [
       params.push(level);
     }
     if (teacherId !== undefined) {
-      updateFields.push('teacherId = ?');
+      updateFields.push('teacher_id = ?');
       params.push(teacherId);
     }
     if (capacity) {
@@ -202,7 +202,7 @@ router.post('/:id/students', authenticateToken, requireRole(['admin']), [
 
     // Vérifier que l'élève existe et est bien un élève
     const [students] = await pool.execute(
-      'SELECT id FROM users WHERE id = ? AND role = "student" AND isActive = TRUE',
+      'SELECT id FROM users WHERE id = ? AND role = "student" AND is_active = TRUE',
       [studentId]
     );
 
@@ -212,7 +212,7 @@ router.post('/:id/students', authenticateToken, requireRole(['admin']), [
 
     // Vérifier que l'élève n'est pas déjà dans la classe
     const [existing] = await pool.execute(
-      'SELECT id FROM student_classes WHERE studentId = ? AND classId = ? AND isActive = TRUE',
+      'SELECT id FROM student_classes WHERE student_id = ? AND class_id = ? AND is_active = TRUE',
       [studentId, id]
     );
 
@@ -221,7 +221,7 @@ router.post('/:id/students', authenticateToken, requireRole(['admin']), [
     }
 
     await pool.execute(
-      'INSERT INTO student_classes (studentId, classId) VALUES (?, ?)',
+      'INSERT INTO student_classes (student_id, class_id) VALUES (?, ?)',
       [studentId, id]
     );
 
@@ -238,7 +238,7 @@ router.delete('/:id/students/:studentId', authenticateToken, requireRole(['admin
     const { id, studentId } = req.params;
 
     await pool.execute(
-      'UPDATE student_classes SET isActive = FALSE WHERE studentId = ? AND classId = ?',
+      'UPDATE student_classes SET is_active = FALSE WHERE student_id = ? AND class_id = ?',
       [studentId, id]
     );
 

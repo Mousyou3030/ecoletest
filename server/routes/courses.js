@@ -8,27 +8,27 @@ const router = express.Router();
 // Obtenir tous les cours
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const { teacherId, classId, subject } = req.query;
+    const { teacher_id, class_id, subject } = req.query;
     
     let query = `
       SELECT c.*,
-             CONCAT(u.\`firstName\`, ' ', u.\`lastName\`) as teacherName,
+             CONCAT(u.\`first_name\`, ' ', u.\`last_name\`) as teacherName,
              cl.\`name\` as className
       FROM courses c
-      LEFT JOIN users u ON c.\`teacherId\` = u.\`id\`
-      LEFT JOIN classes cl ON c.\`classId\` = cl.\`id\`
-      WHERE c.\`isActive\` = TRUE
+      LEFT JOIN users u ON c.\`teacher_id\` = u.\`id\`
+      LEFT JOIN classes cl ON c.\`class_id\` = cl.\`id\`
+      WHERE c.\`is_active\` = TRUE
     `;
     let params = [];
 
-    if (teacherId) {
-      query += ' AND c.`teacherId` = ?';
-      params.push(teacherId);
+    if (teacher_id) {
+      query += ' AND c.`teacher_id` = ?';
+      params.push(teacher_id);
     }
 
-    if (classId) {
-      query += ' AND c.`classId` = ?';
-      params.push(classId);
+    if (class_id) {
+      query += ' AND c.`class_id` = ?';
+      params.push(class_id);
     }
 
     if (subject) {
@@ -36,7 +36,7 @@ router.get('/', authenticateToken, async (req, res) => {
       params.push(subject);
     }
 
-    query += ' ORDER BY c.`createdAt` DESC';
+    query += ' ORDER BY c.`created_at` DESC';
 
     const [courses] = await pool.execute(query, params);
     res.json(courses);
@@ -50,10 +50,10 @@ router.get('/', authenticateToken, async (req, res) => {
 router.post('/', authenticateToken, requireRole(['admin', 'teacher']), [
   body('title').isLength({ min: 1 }),
   body('subject').isLength({ min: 1 }),
-  body('teacherId').isUUID(),
-  body('classId').isUUID(),
-  body('startDate').isISO8601(),
-  body('endDate').isISO8601()
+  body('teacher_id').isUUID(),
+  body('class_id').isUUID(),
+  body('start_date').isISO8601(),
+  body('end_date').isISO8601()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -66,12 +66,12 @@ router.post('/', authenticateToken, requireRole(['admin', 'teacher']), [
       });
     }
 
-    const { title, description, subject, teacherId, classId, startDate, endDate, materials } = req.body;
+    const { title, description, subject, teacher_id, class_id, start_date, end_date, materials } = req.body;
 
     const [result] = await pool.execute(
-      `INSERT INTO courses (\`id\`, \`title\`, \`description\`, \`subject\`, \`teacherId\`, \`classId\`, \`startDate\`, \`endDate\`, \`materials\`)
+      `INSERT INTO courses (\`id\`, \`title\`, \`description\`, \`subject\`, \`teacher_id\`, \`class_id\`, \`start_date\`, \`end_date\`, \`materials\`)
        VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [title, description || null, subject, teacherId, classId, startDate, endDate, JSON.stringify(materials || [])]
+      [title, description || null, subject, teacher_id, class_id, start_date, end_date, JSON.stringify(materials || [])]
     );
 
     res.status(201).json({
@@ -88,7 +88,7 @@ router.post('/', authenticateToken, requireRole(['admin', 'teacher']), [
 router.put('/:id', authenticateToken, requireRole(['admin', 'teacher']), async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, subject, teacherId, classId, startDate, endDate, materials } = req.body;
+    const { title, description, subject, teacher_id, class_id, start_date, end_date, materials } = req.body;
 
     let updateFields = [];
     let params = [];
@@ -105,21 +105,21 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'teacher']), async (
       updateFields.push('subject = ?');
       params.push(subject);
     }
-    if (teacherId) {
-      updateFields.push('teacherId = ?');
-      params.push(teacherId);
+    if (teacher_id) {
+      updateFields.push('teacher_id = ?');
+      params.push(teacher_id);
     }
-    if (classId) {
-      updateFields.push('classId = ?');
-      params.push(classId);
+    if (class_id) {
+      updateFields.push('class_id = ?');
+      params.push(class_id);
     }
-    if (startDate) {
-      updateFields.push('startDate = ?');
-      params.push(startDate);
+    if (start_date) {
+      updateFields.push('start_date = ?');
+      params.push(start_date);
     }
-    if (endDate) {
-      updateFields.push('endDate = ?');
-      params.push(endDate);
+    if (end_date) {
+      updateFields.push('end_date = ?');
+      params.push(end_date);
     }
     if (materials) {
       updateFields.push('materials = ?');
@@ -150,7 +150,7 @@ router.delete('/:id', authenticateToken, requireRole(['admin']), async (req, res
     const { id } = req.params;
 
     await pool.execute(
-      'UPDATE courses SET isActive = FALSE WHERE id = ?',
+      'UPDATE courses SET is_active = FALSE WHERE id = ?',
       [id]
     );
 

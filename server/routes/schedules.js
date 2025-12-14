@@ -8,27 +8,27 @@ const router = express.Router();
 // Obtenir tous les créneaux
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const { classId, teacherId, day } = req.query;
+    const { class_id, teacher_id, day } = req.query;
     
     let query = `
       SELECT s.*, 
-             CONCAT(u.firstName, ' ', u.lastName) as teacherName,
+             CONCAT(u.first_name, ' ', u.last_name) as teacherName,
              c.name as className
       FROM schedules s
-      LEFT JOIN users u ON s.teacherId = u.id
-      LEFT JOIN classes c ON s.classId = c.id
-      WHERE s.isActive = TRUE
+      LEFT JOIN users u ON s.teacher_id = u.id
+      LEFT JOIN classes c ON s.class_id = c.id
+      WHERE s.is_active = TRUE
     `;
     let params = [];
 
-    if (classId) {
-      query += ' AND s.classId = ?';
-      params.push(classId);
+    if (class_id) {
+      query += ' AND s.class_id = ?';
+      params.push(class_id);
     }
 
-    if (teacherId) {
-      query += ' AND s.teacherId = ?';
-      params.push(teacherId);
+    if (teacher_id) {
+      query += ' AND s.teacher_id = ?';
+      params.push(teacher_id);
     }
 
     if (day) {
@@ -36,7 +36,7 @@ router.get('/', authenticateToken, async (req, res) => {
       params.push(day);
     }
 
-    query += ' ORDER BY FIELD(s.day, "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"), s.startTime';
+    query += ' ORDER BY FIELD(s.day, "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"), s.start_time';
 
     const [schedules] = await pool.execute(query, params);
     res.json(schedules);
@@ -49,11 +49,11 @@ router.get('/', authenticateToken, async (req, res) => {
 // Créer un créneau
 router.post('/', authenticateToken, requireRole(['admin']), [
   body('day').isIn(['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']),
-  body('startTime').matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
-  body('endTime').matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
+  body('start_time').matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
+  body('end_time').matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
   body('subject').isLength({ min: 1 }),
-  body('teacherId').isUUID(),
-  body('classId').isUUID()
+  body('teacher_id').isUUID(),
+  body('class_id').isUUID()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -61,15 +61,15 @@ router.post('/', authenticateToken, requireRole(['admin']), [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { day, startTime, endTime, subject, teacherId, classId, room } = req.body;
+    const { day, start_time, end_time, subject, teacher_id, class_id, room } = req.body;
 
     // Vérifier les conflits d'horaires
     const [conflicts] = await pool.execute(
       `SELECT id FROM schedules 
-       WHERE ((teacherId = ? AND day = ? AND startTime < ? AND endTime > ?) 
-              OR (classId = ? AND day = ? AND startTime < ? AND endTime > ?))
-       AND isActive = TRUE`,
-      [teacherId, day, endTime, startTime, classId, day, endTime, startTime]
+       WHERE ((teacher_id = ? AND day = ? AND start_time < ? AND end_time > ?) 
+              OR (class_id = ? AND day = ? AND start_time < ? AND end_time > ?))
+       AND is_active = TRUE`,
+      [teacher_id, day, end_time, start_time, class_id, day, end_time, start_time]
     );
 
     if (conflicts.length > 0) {
@@ -77,9 +77,9 @@ router.post('/', authenticateToken, requireRole(['admin']), [
     }
 
     const [result] = await pool.execute(
-      `INSERT INTO schedules (id, day, startTime, endTime, subject, teacherId, classId, room) 
+      `INSERT INTO schedules (id, day, start_time, end_time, subject, teacher_id, class_id, room) 
        VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?)`,
-      [day, startTime, endTime, subject, teacherId, classId, room || null]
+      [day, start_time, end_time, subject, teacher_id, class_id, room || null]
     );
 
     res.status(201).json({
@@ -98,7 +98,7 @@ router.delete('/:id', authenticateToken, requireRole(['admin']), async (req, res
     const { id } = req.params;
 
     await pool.execute(
-      'UPDATE schedules SET isActive = FALSE WHERE id = ?',
+      'UPDATE schedules SET is_active = FALSE WHERE id = ?',
       [id]
     );
 

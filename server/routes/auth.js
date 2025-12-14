@@ -22,7 +22,7 @@ router.post('/login', [
 
     // Rechercher l'utilisateur
     const [users] = await pool.execute(
-      'SELECT * FROM users WHERE email = ? AND isActive = TRUE',
+      'SELECT * FROM users WHERE email = ? AND is_active = TRUE',
       [email]
     );
 
@@ -94,7 +94,7 @@ router.post('/register', authenticateToken, [
 
     // Créer l'utilisateur
     const [result] = await pool.execute(
-      `INSERT INTO users (email, password, firstName, lastName, role, phone, address, dateOfBirth) 
+      `INSERT INTO users (email, password, first_name, last_name, role, phone, address, date_of_birth)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [email, hashedPassword, firstName, lastName, role, phone, address, dateOfBirth]
     );
