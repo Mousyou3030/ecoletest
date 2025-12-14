@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Calendar, Users, CheckCircle, XCircle, Clock, Filter, Download } from 'lucide-react';
-import { attendanceService, classService } from '../../services/api';
+import { supabaseAttendanceService, supabaseClassService } from '../../services/supabase';
 
 interface Student {
-  id: number;
+  id: string;
   first_name: string;
   last_name: string;
   email: string;
@@ -11,9 +11,9 @@ interface Student {
 }
 
 interface AttendanceRecord {
-  id: number;
-  student_id: number;
-  class_id?: number;
+  id: string;
+  student_id: string;
+  class_id?: string;
   date: string;
   status: 'present' | 'absent' | 'late' | 'excused';
   notes?: string;
@@ -54,12 +54,16 @@ const AttendanceManagement: React.FC = () => {
 
   const loadClasses = async () => {
     try {
-      const response = await classService.getAll();
-      if (response.success) {
-        setClasses(response.data);
-        if (response.data.length > 0) {
-          setSelectedClass(response.data[0].id.toString());
-        }
+      const classesData = await supabaseClassService.getAll();
+      const mappedClasses = classesData.map(cls => ({
+        id: cls.id,
+        name: cls.name,
+        level: cls.level,
+        teacher_id: cls.teacherId
+      }));
+      setClasses(mappedClasses);
+      if (mappedClasses.length > 0) {
+        setSelectedClass(mappedClasses[0].id.toString());
       }
     } catch (err: any) {
       setError('Erreur lors du chargement des classes');
@@ -75,17 +79,30 @@ const AttendanceManagement: React.FC = () => {
       };
 
       if (selectedClass) {
-        params.class_id = selectedClass;
+        params.classId = selectedClass;
       }
 
+      const attendancesData = await supabaseAttendanceService.getAll(params);
+
+      let filteredData = attendancesData;
       if (selectedStatus && selectedStatus !== 'all') {
-        params.status = selectedStatus;
+        filteredData = attendancesData.filter(att => att.status === selectedStatus);
       }
 
-      const response = await attendanceService.getAll(params);
-      if (response.success) {
-        setAttendances(response.data);
-      }
+      const mappedAttendances = filteredData.map(att => ({
+        id: att.id,
+        student_id: att.studentId,
+        class_id: att.classId,
+        date: att.date.toISOString().split('T')[0],
+        status: att.status,
+        notes: att.notes || '',
+        first_name: att.student?.first_name,
+        last_name: att.student?.last_name,
+        email: att.student?.email,
+        class_name: att.class?.name
+      }));
+
+      setAttendances(mappedAttendances);
     } catch (err: any) {
       setError('Erreur lors du chargement des présences');
       console.error(err);
@@ -101,13 +118,11 @@ const AttendanceManagement: React.FC = () => {
       };
 
       if (selectedClass) {
-        params.class_id = selectedClass;
+        params.classId = selectedClass;
       }
 
-      const response = await attendanceService.getStats(params);
-      if (response.success) {
-        setStats(response.data);
-      }
+      const statsData = await supabaseAttendanceService.getStats(params);
+      setStats(statsData);
     } catch (err: any) {
       console.error('Erreur lors du chargement des statistiques:', err);
     }
@@ -143,15 +158,13 @@ const AttendanceManagement: React.FC = () => {
     }
   };
 
-  const updateAttendanceStatus = async (attendanceId: number, newStatus: string) => {
+  const updateAttendanceStatus = async (attendanceId: string, newStatus: string) => {
     try {
-      const response = await attendanceService.update(attendanceId.toString(), { status: newStatus });
-      if (response.success) {
-        setAttendances(prev => prev.map(att =>
-          att.id === attendanceId ? { ...att, status: newStatus as any } : att
-        ));
-        loadStats();
-      }
+      await supabaseAttendanceService.update(attendanceId, { status: newStatus });
+      setAttendances(prev => prev.map(att =>
+        att.id === attendanceId ? { ...att, status: newStatus as any } : att
+      ));
+      loadStats();
     } catch (err: any) {
       setError('Erreur lors de la mise à jour du statut');
       console.error(err);

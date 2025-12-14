@@ -164,6 +164,29 @@ export const supabaseClassService = {
       createdAt: new Date(cls.created_at),
       teacher: cls.teacher
     }));
+  },
+
+  getStudents: async (classId: string) => {
+    const { data, error } = await supabase
+      .from('student_classes')
+      .select(`
+        *,
+        student:users!student_id(id, first_name, last_name, email, phone, avatar)
+      `)
+      .eq('class_id', classId)
+      .eq('is_active', true);
+
+    if (error) throw error;
+
+    return data.map(sc => ({
+      id: sc.student.id,
+      firstName: sc.student.first_name,
+      lastName: sc.student.last_name,
+      email: sc.student.email,
+      phone: sc.student.phone,
+      avatar: sc.student.avatar,
+      enrollmentDate: sc.enrollment_date
+    }));
   }
 };
 
@@ -392,6 +415,32 @@ export const supabaseAttendanceService = {
     }));
   },
 
+  getStats: async (params?: any) => {
+    let query = supabase
+      .from('attendances')
+      .select('status');
+
+    if (params?.classId) {
+      query = query.eq('class_id', params.classId);
+    }
+    if (params?.date) {
+      query = query.eq('date', params.date);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const stats = {
+      total: data.length,
+      present: data.filter(a => a.status === 'present').length,
+      absent: data.filter(a => a.status === 'absent').length,
+      late: data.filter(a => a.status === 'late').length,
+      excused: data.filter(a => a.status === 'excused').length
+    };
+
+    return stats;
+  },
+
   create: async (attendanceData: any) => {
     const { data, error } = await supabase
       .from('attendances')
@@ -416,17 +465,20 @@ export const supabaseAttendanceService = {
   bulkCreate: async (attendancesData: any[]) => {
     const inserts = attendancesData.map(attendance => ({
       student_id: attendance.studentId,
-      course_id: attendance.courseId,
+      course_id: attendance.courseId || null,
       class_id: attendance.classId,
       date: attendance.date,
       status: attendance.status,
-      notes: attendance.notes,
+      notes: attendance.notes || '',
       marked_by: attendance.markedBy
     }));
 
     const { data, error } = await supabase
       .from('attendances')
-      .insert(inserts)
+      .upsert(inserts, {
+        onConflict: 'student_id,date,course_id',
+        ignoreDuplicates: false
+      })
       .select();
 
     if (error) throw error;
