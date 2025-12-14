@@ -38,11 +38,15 @@ router.get('/', authenticateToken, async (req, res) => {
 
     query += ' ORDER BY c.`createdAt` DESC';
 
+    console.log('Courses Query:', query);
+    console.log('Courses Params:', params);
     const [courses] = await pool.execute(query, params);
+    console.log('Courses Found:', courses.length);
     res.json(courses);
   } catch (error) {
     console.error('Erreur lors de la récupération des cours:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    console.error('Error details:', error.message);
+    res.status(500).json({ error: 'Erreur serveur', details: error.message });
   }
 });
 

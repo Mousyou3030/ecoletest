@@ -9,7 +9,7 @@ const router = express.Router();
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const { teacherId, level } = req.query;
-    
+
     let query = `
       SELECT c.*,
              CONCAT(u.firstName, ' ', u.lastName) as teacherName,
@@ -33,11 +33,15 @@ router.get('/', authenticateToken, async (req, res) => {
 
     query += ' GROUP BY c.id ORDER BY c.level, c.name';
 
+    console.log('Classes Query:', query);
+    console.log('Classes Params:', params);
     const [classes] = await pool.execute(query, params);
+    console.log('Classes Found:', classes.length);
     res.json(classes);
   } catch (error) {
     console.error('Erreur lors de la récupération des classes:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    console.error('Error details:', error.message);
+    res.status(500).json({ error: 'Erreur serveur', details: error.message });
   }
 });
 

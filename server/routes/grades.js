@@ -54,11 +54,15 @@ router.get('/', authenticateToken, async (req, res) => {
 
     query += ' ORDER BY g.date DESC';
 
+    console.log('Grades Query:', query);
+    console.log('Grades Params:', params);
     const [grades] = await pool.execute(query, params);
+    console.log('Grades Found:', grades.length);
     res.json(grades);
   } catch (error) {
     console.error('Erreur lors de la récupération des notes:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
+    console.error('Error details:', error.message);
+    res.status(500).json({ error: 'Erreur serveur', details: error.message });
   }
 });
 
