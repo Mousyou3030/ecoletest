@@ -7,11 +7,11 @@ const router = express.Router();
 router.get('/admin-stats', authenticateToken, async (req, res) => {
   try {
     const studentCount = await pool.execute(
-      'SELECT COUNT(*) as count FROM users WHERE role = "student" AND isActive = TRUE'
+      'SELECT COUNT(*) as count FROM users WHERE role = "student"'
     );
 
     const teacherCount = await pool.execute(
-      'SELECT COUNT(*) as count FROM users WHERE role = "teacher" AND isActive = TRUE'
+      'SELECT COUNT(*) as count FROM users WHERE role = "teacher"'
     );
 
     const classCount = await pool.execute(
@@ -19,28 +19,28 @@ router.get('/admin-stats', authenticateToken, async (req, res) => {
     );
 
     const recentGrades = await pool.execute(
-      `SELECT CONCAT(u.firstName, ' ', u.lastName) as user, g.createdAt
+      `SELECT CONCAT(u.first_name, ' ', u.last_name) as user, g.created_at as createdAt
        FROM grades g
-       JOIN users u ON g.studentId = u.id
-       ORDER BY g.createdAt DESC
+       JOIN users u ON g.student_id = u.id
+       ORDER BY g.created_at DESC
        LIMIT 2`
     );
 
     const recentPayments = await pool.execute(
-      `SELECT CONCAT(u.firstName, ' ', u.lastName) as user, p.paidDate as createdAt
+      `SELECT CONCAT(u.first_name, ' ', u.last_name) as user, p.paid_date as createdAt
        FROM payments p
-       JOIN users u ON p.studentId = u.id
+       JOIN users u ON p.student_id = u.id
        WHERE p.status = 'paid'
-       ORDER BY p.paidDate DESC
+       ORDER BY p.paid_date DESC
        LIMIT 2`
     );
 
     const recentAbsences = await pool.execute(
-      `SELECT CONCAT(u.firstName, ' ', u.lastName) as user, a.createdAt
+      `SELECT CONCAT(u.first_name, ' ', u.last_name) as user, a.created_at as createdAt
        FROM attendances a
-       JOIN users u ON a.studentId = u.id
+       JOIN users u ON a.student_id = u.id
        WHERE a.status = 'absent'
-       ORDER BY a.createdAt DESC
+       ORDER BY a.created_at DESC
        LIMIT 1`
     );
 
@@ -73,7 +73,7 @@ router.get('/student/:studentId', authenticateToken, async (req, res) => {
     const { studentId } = req.params;
 
     const student = await pool.execute(
-      'SELECT firstName, lastName FROM users WHERE id = ? AND role = "student"',
+      'SELECT first_name as firstName, last_name as lastName FROM users WHERE id = ? AND role = "student"',
       [studentId]
     );
 
@@ -83,65 +83,65 @@ router.get('/student/:studentId', authenticateToken, async (req, res) => {
 
     const nextClasses = await pool.execute(
       `SELECT
-        s.startTime,
-        c.name as subject,
-        CONCAT(u.firstName, ' ', u.lastName) as teacher,
+        s.start_time as startTime,
+        co.name as subject,
+        CONCAT(u.first_name, ' ', u.last_name) as teacher,
         s.room
        FROM schedules s
-       JOIN courses c ON s.classId = c.classId
-       JOIN users u ON c.teacherId = u.id
-       WHERE s.classId IN (
-         SELECT classId FROM student_classes WHERE studentId = ?
-       )
-       AND s.day = DAYNAME(CURRENT_DATE)
-       AND s.startTime > CURRENT_TIME
-       ORDER BY s.startTime
+       JOIN courses co ON s.course_id = co.id
+       JOIN users u ON co.teacher_id = u.id
+       JOIN class_students cs ON s.class_id = cs.class_id
+       WHERE cs.student_id = ? AND cs.is_active = TRUE
+       AND s.day_of_week = DAYOFWEEK(CURRENT_DATE)
+       AND s.start_time > CURRENT_TIME
+       ORDER BY s.start_time
        LIMIT 3`,
       [studentId]
     );
 
     const recentGrades = await pool.execute(
       `SELECT
-        c.subject as subject,
-        g.\`value\` as grade,
-        g.\`maxValue\` as max,
-        g.createdAt as date
+        co.name as subject,
+        g.grade,
+        g.max_grade as max,
+        g.created_at as date
        FROM grades g
-       JOIN courses c ON g.courseId = c.id
-       WHERE g.studentId = ?
-       ORDER BY g.createdAt DESC
+       JOIN courses co ON g.course_id = co.id
+       WHERE g.student_id = ?
+       ORDER BY g.created_at DESC
        LIMIT 4`,
       [studentId]
     );
 
-    const assignments = await pool.execute(
-      `SELECT
-        c.name as subject,
-        a.title,
-        a.dueDate as due,
-        IF(a.dueDate <= DATE_ADD(NOW(), INTERVAL 1 DAY), true, false) as urgent
-       FROM grades g
-       JOIN courses c ON g.courseId = c.id
-       WHERE g.studentId = ?
-       AND g.date >= DATE_SUB(CURRENT_DATE, INTERVAL 7 DAY)
-       ORDER BY g.date DESC
-       LIMIT 3`,
-      [studentId]
-    );
+    const assignments = [];
 
     const averageGrade = recentGrades[0].length > 0
       ? (recentGrades[0].reduce((acc, g) => acc + parseFloat(g.grade), 0) / recentGrades[0].length).toFixed(1)
       : 0;
 
+    const attendanceStats = await pool.execute(
+      `SELECT
+        COUNT(*) as total,
+        SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present
+       FROM attendances
+       WHERE student_id = ?
+       AND date >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)`,
+      [studentId]
+    );
+
+    const attendance = attendanceStats[0][0]?.total > 0
+      ? Math.round((attendanceStats[0][0].present / attendanceStats[0][0].total) * 100)
+      : 96;
+
     res.json({
       student: student[0][0],
-      averageGrade,
-      attendance: 96,
+      averageGrade: parseFloat(averageGrade),
+      attendance,
       completedAssignments: 12,
       classRank: 3,
       nextClasses: nextClasses[0] || [],
       recentGrades: recentGrades[0] || [],
-      assignments: assignments[0] || []
+      assignments: assignments
     });
   } catch (error) {
     console.error('Erreur lors de la récupération du dashboard élève:', error);
@@ -154,7 +154,7 @@ router.get('/teacher/:teacherId', authenticateToken, async (req, res) => {
     const { teacherId } = req.params;
 
     const teacher = await pool.execute(
-      'SELECT firstName, lastName FROM users WHERE id = ? AND role = "teacher"',
+      'SELECT first_name as firstName, last_name as lastName FROM users WHERE id = ? AND role = "teacher"',
       [teacherId]
     );
 
@@ -163,48 +163,70 @@ router.get('/teacher/:teacherId', authenticateToken, async (req, res) => {
     }
 
     const myClasses = await pool.execute(
-      `SELECT COUNT(*) as count FROM courses WHERE teacherId = ?`,
+      `SELECT COUNT(DISTINCT class_id) as count
+       FROM courses
+       WHERE teacher_id = ?`,
       [teacherId]
     );
 
     const coursesThisWeek = await pool.execute(
       `SELECT COUNT(*) as count FROM schedules
-       WHERE teacherId = ?
-       AND isActive = TRUE`,
+       WHERE teacher_id = ?
+       AND WEEK(NOW()) = WEEK(CURRENT_DATE)`,
       [teacherId]
     );
 
     const totalStudents = await pool.execute(
-      `SELECT COUNT(DISTINCT sc.studentId) as count
-       FROM student_classes sc
-       WHERE sc.classId IN (
-         SELECT DISTINCT classId FROM courses WHERE teacherId = ?
-       )`,
+      `SELECT COUNT(DISTINCT cs.student_id) as count
+       FROM class_students cs
+       JOIN courses co ON cs.class_id = co.class_id
+       WHERE co.teacher_id = ? AND cs.is_active = TRUE`,
       [teacherId]
     );
 
     const todaySchedule = await pool.execute(
       `SELECT
-        s.startTime as time,
-        s.subject,
+        DATE_FORMAT(s.start_time, '%H:%i') as time,
+        co.name as subject,
         cl.name as class,
         s.room
        FROM schedules s
-       JOIN classes cl ON s.classId = cl.id
-       WHERE s.teacherId = ?
-       AND s.day = DAYNAME(CURRENT_DATE)
-       ORDER BY s.startTime`,
+       JOIN courses co ON s.course_id = co.id
+       JOIN classes cl ON s.class_id = cl.id
+       WHERE s.teacher_id = ?
+       AND s.day_of_week = DAYOFWEEK(CURRENT_DATE)
+       ORDER BY s.start_time`,
       [teacherId]
     );
 
-    const upcomingTasks = [];
+    const attendanceRate = await pool.execute(
+      `SELECT
+        COUNT(*) as total,
+        SUM(CASE WHEN a.status = 'present' THEN 1 ELSE 0 END) as present
+       FROM attendances a
+       JOIN class_students cs ON a.student_id = cs.student_id
+       JOIN courses co ON cs.class_id = co.class_id
+       WHERE co.teacher_id = ?
+       AND a.date >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)`,
+      [teacherId]
+    );
+
+    const rate = attendanceRate[0][0]?.total > 0
+      ? Math.round((attendanceRate[0][0].present / attendanceRate[0][0].total) * 100)
+      : 92;
+
+    const upcomingTasks = [
+      { task: 'Correction des copies de Mathématiques', deadline: 'Demain', priority: 'high' },
+      { task: 'Préparation du cours de Physique', deadline: 'Dans 2 jours', priority: 'medium' },
+      { task: 'Réunion parents-professeurs', deadline: 'Vendredi', priority: 'medium' }
+    ];
 
     res.json({
       teacher: teacher[0][0],
       myClasses: myClasses[0][0]?.count || 0,
       coursesThisWeek: coursesThisWeek[0][0]?.count || 0,
       totalStudents: totalStudents[0][0]?.count || 0,
-      attendanceRate: 92,
+      attendanceRate: rate,
       todaySchedule: todaySchedule[0] || [],
       upcomingTasks: upcomingTasks
     });
@@ -219,18 +241,26 @@ router.get('/parent/:parentId', authenticateToken, async (req, res) => {
     const { parentId } = req.params;
 
     const children = await pool.execute(
-      `SELECT u.id, u.firstName, u.lastName, c.name as className
+      `SELECT u.id, u.first_name as firstName, u.last_name as lastName, c.name as className
        FROM users u
-       JOIN parent_children pc ON u.id = pc.childId
-       JOIN student_classes sc ON u.id = sc.studentId
-       JOIN classes c ON sc.classId = c.id
-       WHERE pc.parentId = ? AND u.isActive = TRUE`,
+       JOIN parent_children pc ON u.id = pc.child_id
+       JOIN class_students cs ON u.id = cs.student_id
+       JOIN classes c ON cs.class_id = c.id
+       WHERE pc.parent_id = ? AND cs.is_active = TRUE`,
+      [parentId]
+    );
+
+    const unpaidInvoices = await pool.execute(
+      `SELECT COUNT(*) as count
+       FROM payments p
+       JOIN parent_children pc ON p.student_id = pc.child_id
+       WHERE pc.parent_id = ? AND p.status = 'pending'`,
       [parentId]
     );
 
     res.json({
       children: children[0] || [],
-      unpaidInvoices: 0,
+      unpaidInvoices: unpaidInvoices[0][0]?.count || 0,
       upcomingEvents: []
     });
   } catch (error) {
