@@ -11,26 +11,26 @@ router.get('/', authenticateToken, async (req, res) => {
     let query = `
       SELECT
         a.id,
-        a.studentId,
-        a.classId,
+        a.student_id as studentId,
+        a.class_id as classId,
         a.date,
         a.status,
         a.notes,
-        a.createdAt,
-        u.firstName,
-        u.lastName,
+        a.created_at as createdAt,
+        u.first_name as firstName,
+        u.last_name as lastName,
         u.email,
         c.name as className
       FROM attendances a
-      LEFT JOIN users u ON a.studentId = u.id
-      LEFT JOIN classes c ON a.classId = c.id
+      LEFT JOIN users u ON a.student_id = u.id
+      LEFT JOIN classes c ON a.class_id = c.id
       WHERE 1=1
     `;
 
     const params = [];
 
     if (classId) {
-      query += ' AND a.classId = ?';
+      query += ' AND a.class_id = ?';
       params.push(classId);
     }
 
@@ -45,7 +45,7 @@ router.get('/', authenticateToken, async (req, res) => {
     }
 
     if (studentId) {
-      query += ' AND a.studentId = ?';
+      query += ' AND a.student_id = ?';
       params.push(studentId);
     }
 
@@ -85,7 +85,7 @@ router.get('/stats', authenticateToken, async (req, res) => {
     const params = [];
 
     if (classId) {
-      query += ' AND classId = ?';
+      query += ' AND class_id = ?';
       params.push(classId);
     }
 
@@ -126,7 +126,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
     // Vérifier si une présence existe déjà
     const [existing] = await pool.execute(
-      'SELECT id FROM attendances WHERE studentId = ? AND date = ? AND classId = ?',
+      'SELECT id FROM attendances WHERE student_id = ? AND date = ? AND class_id = ?',
       [studentId, date, classId]
     );
 
@@ -145,7 +145,7 @@ router.post('/', authenticateToken, async (req, res) => {
     } else {
       // Créer
       const [result] = await pool.execute(
-        'INSERT INTO attendances (studentId, classId, date, status, notes, marked_by) VALUES (?, ?, ?, ?, ?, ?)',
+        'INSERT INTO attendances (student_id, class_id, date, status, notes, marked_by) VALUES (?, ?, ?, ?, ?, ?)',
         [studentId, classId || null, date, status, notes || null, req.user.id]
       );
 
@@ -254,7 +254,7 @@ router.post('/bulk', authenticateToken, async (req, res) => {
 
         // Vérifier si existe déjà
         const [existing] = await connection.execute(
-          'SELECT id FROM attendances WHERE studentId = ? AND date = ? AND classId = ?',
+          'SELECT id FROM attendances WHERE student_id = ? AND date = ? AND class_id = ?',
           [studentId, date, classId]
         );
 
@@ -265,7 +265,7 @@ router.post('/bulk', authenticateToken, async (req, res) => {
           );
         } else {
           await connection.execute(
-            'INSERT INTO attendances (studentId, classId, date, status, notes, marked_by) VALUES (?, ?, ?, ?, ?, ?)',
+            'INSERT INTO attendances (student_id, class_id, date, status, notes, marked_by) VALUES (?, ?, ?, ?, ?, ?)',
             [studentId, classId, date, status, notes || null, req.user.id]
           );
         }
