@@ -9,25 +9,25 @@ const router = express.Router();
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const { teacher_id, class_id, subject } = req.query;
-    
+
     let query = `
       SELECT c.*,
-             CONCAT(u.firstName, ' ', u.lastName) as teacherName,
+             CONCAT(u.first_name, ' ', u.last_name) as teacherName,
              cl.name as className
       FROM courses c
-      LEFT JOIN users u ON c.teacherId = u.id
-      LEFT JOIN classes cl ON c.classId = cl.id
+      LEFT JOIN users u ON c.teacher_id = u.id
+      LEFT JOIN classes cl ON c.class_id = cl.id
       WHERE 1=1
     `;
     let params = [];
 
     if (teacher_id) {
-      query += ' AND c.teacherId = ?';
+      query += ' AND c.teacher_id = ?';
       params.push(teacher_id);
     }
 
     if (class_id) {
-      query += ' AND c.classId = ?';
+      query += ' AND c.class_id = ?';
       params.push(class_id);
     }
 
@@ -36,7 +36,7 @@ router.get('/', authenticateToken, async (req, res) => {
       params.push(subject);
     }
 
-    query += ' ORDER BY c.createdAt DESC';
+    query += ' ORDER BY c.created_at DESC';
 
     console.log('Courses Query:', query);
     console.log('Courses Params:', params);
@@ -52,12 +52,8 @@ router.get('/', authenticateToken, async (req, res) => {
 
 // Créer un cours
 router.post('/', authenticateToken, requireRole(['admin', 'teacher']), [
-  body('title').isLength({ min: 1 }),
-  body('subject').isLength({ min: 1 }),
-  body('teacherId').isUUID(),
-  body('classId').isUUID(),
-  body('startDate').isISO8601(),
-  body('endDate').isISO8601()
+  body('name').isLength({ min: 1 }),
+  body('subject').isLength({ min: 1 })
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -70,12 +66,12 @@ router.post('/', authenticateToken, requireRole(['admin', 'teacher']), [
       });
     }
 
-    const { title, description, subject, teacherId, classId, startDate, endDate, materials } = req.body;
+    const { name, description, subject, teacher_id, class_id, credits } = req.body;
 
     const [result] = await pool.execute(
-      `INSERT INTO courses (\`id\`, \`title\`, \`description\`, \`subject\`, \`teacherId\`, \`classId\`, \`startDate\`, \`endDate\`, \`materials\`)
-       VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [title, description || null, subject, teacherId, classId, startDate, endDate, JSON.stringify(materials || [])]
+      `INSERT INTO courses (name, description, subject, teacher_id, class_id, credits)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [name, description || null, subject, teacher_id || null, class_id || null, credits || 1]
     );
 
     res.status(201).json({
@@ -92,14 +88,14 @@ router.post('/', authenticateToken, requireRole(['admin', 'teacher']), [
 router.put('/:id', authenticateToken, requireRole(['admin', 'teacher']), async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, subject, teacherId, classId, startDate, endDate, materials } = req.body;
+    const { name, description, subject, teacher_id, class_id, credits } = req.body;
 
     let updateFields = [];
     let params = [];
 
-    if (title) {
-      updateFields.push('title = ?');
-      params.push(title);
+    if (name) {
+      updateFields.push('name = ?');
+      params.push(name);
     }
     if (description !== undefined) {
       updateFields.push('description = ?');
@@ -109,25 +105,17 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'teacher']), async (
       updateFields.push('subject = ?');
       params.push(subject);
     }
-    if (teacherId) {
-      updateFields.push('teacherId = ?');
-      params.push(teacherId);
+    if (teacher_id) {
+      updateFields.push('teacher_id = ?');
+      params.push(teacher_id);
     }
-    if (classId) {
-      updateFields.push('classId = ?');
-      params.push(classId);
+    if (class_id) {
+      updateFields.push('class_id = ?');
+      params.push(class_id);
     }
-    if (startDate) {
-      updateFields.push('startDate = ?');
-      params.push(startDate);
-    }
-    if (endDate) {
-      updateFields.push('endDate = ?');
-      params.push(endDate);
-    }
-    if (materials) {
-      updateFields.push('materials = ?');
-      params.push(JSON.stringify(materials));
+    if (credits) {
+      updateFields.push('credits = ?');
+      params.push(credits);
     }
 
     if (updateFields.length === 0) {
