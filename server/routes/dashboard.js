@@ -90,9 +90,9 @@ router.get('/student/:studentId', authenticateToken, async (req, res) => {
        FROM schedules s
        JOIN courses co ON s.courseId = co.id
        JOIN users u ON co.teacherId = u.id
-       JOIN class_students cs ON s.classId = cs.classId
-       WHERE cs.studentId = ?
-       AND s.day_of_week = DAYOFWEEK(CURRENT_DATE)
+       JOIN classes cl ON s.classId = cl.id
+       JOIN users st ON st.id = ?
+       WHERE s.dayOfWeek = DAYOFWEEK(CURRENT_DATE)
        AND s.startTime > CURRENT_TIME
        ORDER BY s.startTime
        LIMIT 3`,
@@ -177,10 +177,10 @@ router.get('/teacher/:teacherId', authenticateToken, async (req, res) => {
     );
 
     const totalStudents = await pool.execute(
-      `SELECT COUNT(DISTINCT cs.studentId) as count
-       FROM class_students cs
-       JOIN courses co ON cs.classId = co.classId
-       WHERE co.teacherId = ?`,
+      `SELECT COUNT(DISTINCT a.studentId) as count
+       FROM attendances a
+       JOIN classes cl ON a.classId = cl.id
+       WHERE cl.teacherId = ?`,
       [teacherId]
     );
 
@@ -194,7 +194,7 @@ router.get('/teacher/:teacherId', authenticateToken, async (req, res) => {
        JOIN courses co ON s.courseId = co.id
        JOIN classes cl ON s.classId = cl.id
        WHERE s.teacherId = ?
-       AND s.day_of_week = DAYOFWEEK(CURRENT_DATE)
+       AND s.dayOfWeek = DAYOFWEEK(CURRENT_DATE)
        ORDER BY s.startTime`,
       [teacherId]
     );
@@ -204,9 +204,8 @@ router.get('/teacher/:teacherId', authenticateToken, async (req, res) => {
         COUNT(*) as total,
         SUM(CASE WHEN a.status = 'present' THEN 1 ELSE 0 END) as present
        FROM attendances a
-       JOIN class_students cs ON a.studentId = cs.studentId
-       JOIN courses co ON cs.classId = co.classId
-       WHERE co.teacherId = ?
+       JOIN classes cl ON a.classId = cl.id
+       WHERE cl.teacherId = ?
        AND a.date >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)`,
       [teacherId]
     );
@@ -241,11 +240,9 @@ router.get('/parent/:parentId', authenticateToken, async (req, res) => {
     const { parentId } = req.params;
 
     const children = await pool.execute(
-      `SELECT u.id, u.firstName as firstName, u.lastName as lastName, c.name as className
+      `SELECT u.id, u.firstName as firstName, u.lastName as lastName, '' as className
        FROM users u
        JOIN parent_children pc ON u.id = pc.childId
-       JOIN class_students cs ON u.id = cs.studentId
-       JOIN classes c ON cs.classId = c.id
        WHERE pc.parentId = ?`,
       [parentId]
     );
