@@ -11,26 +11,26 @@ router.get('/', authenticateToken, async (req, res) => {
     let query = `
       SELECT
         a.id,
-        a.student_id as studentId,
-        a.class_id as classId,
+        a.studentId,
+        a.classId,
         a.date,
         a.status,
         a.notes,
-        a.created_at as createdAt,
-        u.first_name as firstName,
-        u.last_name as lastName,
+        a.createdAt,
+        u.firstName,
+        u.lastName,
         u.email,
         c.name as className
       FROM attendances a
-      LEFT JOIN users u ON a.student_id = u.id
-      LEFT JOIN classes c ON a.class_id = c.id
+      LEFT JOIN users u ON a.studentId = u.id
+      LEFT JOIN classes c ON a.classId = c.id
       WHERE 1=1
     `;
 
     const params = [];
 
     if (classId) {
-      query += ' AND a.class_id = ?';
+      query += ' AND a.classId = ?';
       params.push(classId);
     }
 
@@ -45,7 +45,7 @@ router.get('/', authenticateToken, async (req, res) => {
     }
 
     if (studentId) {
-      query += ' AND a.student_id = ?';
+      query += ' AND a.studentId = ?';
       params.push(studentId);
     }
 
@@ -85,7 +85,7 @@ router.get('/stats', authenticateToken, async (req, res) => {
     const params = [];
 
     if (classId) {
-      query += ' AND class_id = ?';
+      query += ' AND classId = ?';
       params.push(classId);
     }
 
@@ -126,14 +126,14 @@ router.post('/', authenticateToken, async (req, res) => {
 
     // Vérifier si une présence existe déjà
     const [existing] = await pool.execute(
-      'SELECT id FROM attendances WHERE student_id = ? AND date = ? AND class_id = ?',
+      'SELECT id FROM attendances WHERE studentId = ? AND date = ? AND classId = ?',
       [studentId, date, classId]
     );
 
     if (existing.length > 0) {
       // Mettre à jour
       await pool.execute(
-        'UPDATE attendances SET status = ?, notes = ?, marked_by = ?, updated_at = NOW() WHERE id = ?',
+        'UPDATE attendances SET status = ?, notes = ?, markedBy = ?, updatedAt = NOW() WHERE id = ?',
         [status, notes || null, req.user.id, existing[0].id]
       );
 
@@ -145,7 +145,7 @@ router.post('/', authenticateToken, async (req, res) => {
     } else {
       // Créer
       const [result] = await pool.execute(
-        'INSERT INTO attendances (student_id, class_id, date, status, notes, marked_by) VALUES (?, ?, ?, ?, ?, ?)',
+        'INSERT INTO attendances (studentId, classId, date, status, notes, markedBy) VALUES (?, ?, ?, ?, ?, ?)',
         [studentId, classId || null, date, status, notes || null, req.user.id]
       );
 
@@ -178,7 +178,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     }
 
     const [result] = await pool.execute(
-      'UPDATE attendances SET status = ?, notes = ?, marked_by = ?, updated_at = NOW() WHERE id = ?',
+      'UPDATE attendances SET status = ?, notes = ?, markedBy = ?, updatedAt = NOW() WHERE id = ?',
       [status, notes || null, req.user.id, id]
     );
 
@@ -254,18 +254,18 @@ router.post('/bulk', authenticateToken, async (req, res) => {
 
         // Vérifier si existe déjà
         const [existing] = await connection.execute(
-          'SELECT id FROM attendances WHERE student_id = ? AND date = ? AND class_id = ?',
+          'SELECT id FROM attendances WHERE studentId = ? AND date = ? AND classId = ?',
           [studentId, date, classId]
         );
 
         if (existing.length > 0) {
           await connection.execute(
-            'UPDATE attendances SET status = ?, notes = ?, marked_by = ?, updated_at = NOW() WHERE id = ?',
+            'UPDATE attendances SET status = ?, notes = ?, markedBy = ?, updatedAt = NOW() WHERE id = ?',
             [status, notes || null, req.user.id, existing[0].id]
           );
         } else {
           await connection.execute(
-            'INSERT INTO attendances (student_id, class_id, date, status, notes, marked_by) VALUES (?, ?, ?, ?, ?, ?)',
+            'INSERT INTO attendances (studentId, classId, date, status, notes, markedBy) VALUES (?, ?, ?, ?, ?, ?)',
             [studentId, classId, date, status, notes || null, req.user.id]
           );
         }

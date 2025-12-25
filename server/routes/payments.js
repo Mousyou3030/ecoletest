@@ -16,8 +16,8 @@ router.get('/', authenticateToken, async (req, res) => {
              c.name as className
       FROM payments p
       LEFT JOIN users u ON p.studentId = u.id
-      LEFT JOIN class_students sc ON u.id = sc.studentId
-      LEFT JOIN classes c ON sc.classId = c.id
+      LEFT JOIN class_students cs ON u.id = cs.studentId
+      LEFT JOIN classes c ON cs.classId = c.id
       WHERE 1=1
     `;
     let params = [];

@@ -6,15 +6,15 @@ CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
-    first_name VARCHAR(100),
-    last_name VARCHAR(100),
+    firstName VARCHAR(100),
+    lastName VARCHAR(100),
     role ENUM('admin', 'teacher', 'student', 'parent') DEFAULT 'student',
     phone VARCHAR(20),
     address TEXT,
-    date_of_birth DATE,
+    dateOfBirth DATE,
     isActive BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_role (role),
     INDEX idx_email (email)
 );
@@ -24,26 +24,26 @@ CREATE TABLE IF NOT EXISTS classes (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     level VARCHAR(50),
-    academic_year VARCHAR(20),
-    teacher_id INT,
+    academicYear VARCHAR(20),
+    teacherId INT,
     capacity INT DEFAULT 30,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE SET NULL,
-    INDEX idx_teacher (teacher_id)
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (teacherId) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_teacher (teacherId)
 );
 
 -- Table des étudiants dans les classes
 CREATE TABLE IF NOT EXISTS class_students (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    class_id INT NOT NULL,
-    student_id INT NOT NULL,
-    enrollment_date DATE DEFAULT (CURRENT_DATE),
-    is_active BOOLEAN DEFAULT TRUE,
-    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
-    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
-    UNIQUE KEY unique_class_student (class_id, student_id),
-    INDEX idx_class (class_id),
-    INDEX idx_student (student_id)
+    classId INT NOT NULL,
+    studentId INT NOT NULL,
+    enrollmentDate DATE DEFAULT (CURRENT_DATE),
+    isActive BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (classId) REFERENCES classes(id) ON DELETE CASCADE,
+    FOREIGN KEY (studentId) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_class_student (classId, studentId),
+    INDEX idx_class (classId),
+    INDEX idx_student (studentId)
 );
 
 -- Table des cours
@@ -51,174 +51,174 @@ CREATE TABLE IF NOT EXISTS courses (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     description TEXT,
-    teacher_id INT,
-    class_id INT,
+    teacherId INT,
+    classId INT,
     subject VARCHAR(100),
     credits INT DEFAULT 1,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE SET NULL,
-    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
-    INDEX idx_teacher (teacher_id),
-    INDEX idx_class (class_id)
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (teacherId) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (classId) REFERENCES classes(id) ON DELETE CASCADE,
+    INDEX idx_teacher (teacherId),
+    INDEX idx_class (classId)
 );
 
 -- Table des emplois du temps
 CREATE TABLE IF NOT EXISTS schedules (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    course_id INT NOT NULL,
-    class_id INT NOT NULL,
-    teacher_id INT,
-    day_of_week INT NOT NULL COMMENT '1=Dimanche, 2=Lundi, ..., 7=Samedi',
-    start_time TIME NOT NULL,
-    end_time TIME NOT NULL,
+    courseId INT NOT NULL,
+    classId INT NOT NULL,
+    teacherId INT,
+    dayOfWeek INT NOT NULL COMMENT '1=Dimanche, 2=Lundi, ..., 7=Samedi',
+    startTime TIME NOT NULL,
+    endTime TIME NOT NULL,
     room VARCHAR(50),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
-    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
-    FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE SET NULL,
-    INDEX idx_day_time (day_of_week, start_time),
-    INDEX idx_course (course_id),
-    INDEX idx_teacher (teacher_id)
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (courseId) REFERENCES courses(id) ON DELETE CASCADE,
+    FOREIGN KEY (classId) REFERENCES classes(id) ON DELETE CASCADE,
+    FOREIGN KEY (teacherId) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_day_time (dayOfWeek, startTime),
+    INDEX idx_course (courseId),
+    INDEX idx_teacher (teacherId)
 );
 
 -- Table des présences
 CREATE TABLE IF NOT EXISTS attendances (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    student_id INT NOT NULL,
-    class_id INT,
+    studentId INT NOT NULL,
+    classId INT,
     date DATE NOT NULL,
     status ENUM('present', 'absent', 'late', 'excused') DEFAULT 'present',
     notes TEXT,
-    marked_by INT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE SET NULL,
-    FOREIGN KEY (marked_by) REFERENCES users(id) ON DELETE SET NULL,
-    UNIQUE KEY unique_attendance (student_id, date, class_id),
+    markedBy INT,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (studentId) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (classId) REFERENCES classes(id) ON DELETE SET NULL,
+    FOREIGN KEY (markedBy) REFERENCES users(id) ON DELETE SET NULL,
+    UNIQUE KEY unique_attendance (studentId, date, classId),
     INDEX idx_date (date),
-    INDEX idx_student (student_id),
-    INDEX idx_class (class_id),
+    INDEX idx_student (studentId),
+    INDEX idx_class (classId),
     INDEX idx_status (status)
 );
 
 -- Table des notes
 CREATE TABLE IF NOT EXISTS grades (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    student_id INT NOT NULL,
-    course_id INT NOT NULL,
+    studentId INT NOT NULL,
+    courseId INT NOT NULL,
     grade DECIMAL(5,2) NOT NULL,
-    max_grade DECIMAL(5,2) DEFAULT 20.00,
-    exam_type VARCHAR(50),
+    maxGrade DECIMAL(5,2) DEFAULT 20.00,
+    examType VARCHAR(50),
     comments TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
-    INDEX idx_student (student_id),
-    INDEX idx_course (course_id),
-    INDEX idx_date (created_at)
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (studentId) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (courseId) REFERENCES courses(id) ON DELETE CASCADE,
+    INDEX idx_student (studentId),
+    INDEX idx_course (courseId),
+    INDEX idx_date (createdAt)
 );
 
 -- Table des paiements
 CREATE TABLE IF NOT EXISTS payments (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    student_id INT NOT NULL,
+    studentId INT NOT NULL,
     amount DECIMAL(10,2) NOT NULL,
     status ENUM('pending', 'paid', 'cancelled') DEFAULT 'pending',
-    payment_type VARCHAR(50),
+    paymentType VARCHAR(50),
     description TEXT,
-    due_date DATE,
-    paid_date DATE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
-    INDEX idx_student (student_id),
+    dueDate DATE,
+    paidDate DATE,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (studentId) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_student (studentId),
     INDEX idx_status (status),
-    INDEX idx_date (due_date)
+    INDEX idx_date (dueDate)
 );
 
 -- Table de liaison parent-enfant
 CREATE TABLE IF NOT EXISTS parent_children (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    parent_id INT NOT NULL,
-    child_id INT NOT NULL,
+    parentId INT NOT NULL,
+    childId INT NOT NULL,
     relationship VARCHAR(50),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (parent_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (child_id) REFERENCES users(id) ON DELETE CASCADE,
-    UNIQUE KEY unique_parent_child (parent_id, child_id),
-    INDEX idx_parent (parent_id),
-    INDEX idx_child (child_id)
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (parentId) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (childId) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_parent_child (parentId, childId),
+    INDEX idx_parent (parentId),
+    INDEX idx_child (childId)
 );
 
 -- Table des messages
 CREATE TABLE IF NOT EXISTS messages (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    sender_id INT NOT NULL,
-    receiver_id INT,
+    senderId INT NOT NULL,
+    receiverId INT,
     subject VARCHAR(255) NOT NULL,
     content TEXT NOT NULL,
-    is_read BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE SET NULL,
-    INDEX idx_sender (sender_id),
-    INDEX idx_receiver (receiver_id),
-    INDEX idx_date (created_at)
+    isRead BOOLEAN DEFAULT FALSE,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (senderId) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (receiverId) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_sender (senderId),
+    INDEX idx_receiver (receiverId),
+    INDEX idx_date (createdAt)
 );
 
 -- Table des notifications
 CREATE TABLE IF NOT EXISTS notifications (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
+    userId INT NOT NULL,
     title VARCHAR(255) NOT NULL,
     message TEXT NOT NULL,
     type ENUM('info', 'success', 'warning', 'error') DEFAULT 'info',
-    is_read BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    INDEX idx_user (user_id),
-    INDEX idx_date (created_at)
+    isRead BOOLEAN DEFAULT FALSE,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user (userId),
+    INDEX idx_date (createdAt)
 );
 
 -- Données de test (optionnel)
 -- Mot de passe pour tous: password123
-INSERT IGNORE INTO users (id, email, password, first_name, last_name, role) VALUES
+INSERT IGNORE INTO users (id, email, password, firstName, lastName, role) VALUES
 (1, 'admin@school.com', '$2a$10$XQP5qLpzV0H/Q.8Tq8xLVO7g2L9lXR6bZiKX.K7Z3X8YxZ5L6Y9jK', 'Admin', 'School', 'admin'),
 (2, 'teacher@school.com', '$2a$10$XQP5qLpzV0H/Q.8Tq8xLVO7g2L9lXR6bZiKX.K7Z3X8YxZ5L6Y9jK', 'Jean', 'Dupont', 'teacher'),
 (3, 'student@school.com', '$2a$10$XQP5qLpzV0H/Q.8Tq8xLVO7g2L9lXR6bZiKX.K7Z3X8YxZ5L6Y9jK', 'Marie', 'Martin', 'student'),
 (4, 'parent@school.com', '$2a$10$XQP5qLpzV0H/Q.8Tq8xLVO7g2L9lXR6bZiKX.K7Z3X8YxZ5L6Y9jK', 'Pierre', 'Martin', 'parent');
 
 -- Créer une classe de test
-INSERT IGNORE INTO classes (id, name, level, academic_year, teacher_id) VALUES
+INSERT IGNORE INTO classes (id, name, level, academicYear, teacherId) VALUES
 (1, 'CM1-A', 'CM1', '2024-2025', 2);
 
 -- Lier l'étudiant à la classe
-INSERT IGNORE INTO class_students (class_id, student_id, is_active) VALUES
+INSERT IGNORE INTO class_students (classId, studentId, isActive) VALUES
 (1, 3, TRUE);
 
 -- Créer un cours
-INSERT IGNORE INTO courses (id, name, teacher_id, class_id, subject) VALUES
+INSERT IGNORE INTO courses (id, name, teacherId, classId, subject) VALUES
 (1, 'Mathématiques CM1', 2, 1, 'Mathématiques');
 
 -- Créer un emploi du temps (Lundi 09:00-10:00)
-INSERT IGNORE INTO schedules (course_id, class_id, teacher_id, day_of_week, start_time, end_time, room) VALUES
+INSERT IGNORE INTO schedules (courseId, classId, teacherId, dayOfWeek, startTime, endTime, room) VALUES
 (1, 1, 2, 2, '09:00:00', '10:00:00', 'Salle 101');
 
 -- Lier parent à enfant
-INSERT IGNORE INTO parent_children (parent_id, child_id, relationship) VALUES
+INSERT IGNORE INTO parent_children (parentId, childId, relationship) VALUES
 (4, 3, 'Père');
 
 -- Ajouter quelques notes de test
-INSERT IGNORE INTO grades (student_id, course_id, grade, max_grade, exam_type) VALUES
+INSERT IGNORE INTO grades (studentId, courseId, grade, maxGrade, examType) VALUES
 (3, 1, 16.50, 20.00, 'Contrôle'),
 (3, 1, 14.00, 20.00, 'Devoir'),
 (3, 1, 18.00, 20.00, 'Examen');
 
 -- Ajouter des présences de test
-INSERT IGNORE INTO attendances (student_id, class_id, date, status) VALUES
+INSERT IGNORE INTO attendances (studentId, classId, date, status) VALUES
 (3, 1, CURRENT_DATE, 'present'),
 (3, 1, DATE_SUB(CURRENT_DATE, INTERVAL 1 DAY), 'present'),
 (3, 1, DATE_SUB(CURRENT_DATE, INTERVAL 2 DAY), 'late'),

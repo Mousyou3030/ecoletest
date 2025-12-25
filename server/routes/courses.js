@@ -8,7 +8,7 @@ const router = express.Router();
 // Obtenir tous les cours
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const { teacher_id, class_id, subject } = req.query;
+    const { teacherId, classId, subject } = req.query;
 
     let query = `
       SELECT c.*,
@@ -21,14 +21,14 @@ router.get('/', authenticateToken, async (req, res) => {
     `;
     let params = [];
 
-    if (teacher_id) {
+    if (teacherId) {
       query += ' AND c.teacherId = ?';
-      params.push(teacher_id);
+      params.push(teacherId);
     }
 
-    if (class_id) {
+    if (classId) {
       query += ' AND c.classId = ?';
-      params.push(class_id);
+      params.push(classId);
     }
 
     if (subject) {
