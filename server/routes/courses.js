@@ -12,22 +12,22 @@ router.get('/', authenticateToken, async (req, res) => {
 
     let query = `
       SELECT c.*,
-             CONCAT(u.first_name, ' ', u.last_name) as teacherName,
+             CONCAT(u.firstName, ' ', u.lastName) as teacherName,
              cl.name as className
       FROM courses c
-      LEFT JOIN users u ON c.teacher_id = u.id
-      LEFT JOIN classes cl ON c.class_id = cl.id
+      LEFT JOIN users u ON c.teacherId = u.id
+      LEFT JOIN classes cl ON c.classId = cl.id
       WHERE 1=1
     `;
     let params = [];
 
     if (teacher_id) {
-      query += ' AND c.teacher_id = ?';
+      query += ' AND c.teacherId = ?';
       params.push(teacher_id);
     }
 
     if (class_id) {
-      query += ' AND c.class_id = ?';
+      query += ' AND c.classId = ?';
       params.push(class_id);
     }
 
@@ -36,7 +36,7 @@ router.get('/', authenticateToken, async (req, res) => {
       params.push(subject);
     }
 
-    query += ' ORDER BY c.created_at DESC';
+    query += ' ORDER BY c.createdAt DESC';
 
     console.log('Courses Query:', query);
     console.log('Courses Params:', params);
@@ -66,12 +66,12 @@ router.post('/', authenticateToken, requireRole(['admin', 'teacher']), [
       });
     }
 
-    const { name, description, subject, teacher_id, class_id, credits } = req.body;
+    const { name, description, subject, teacherId, classId, credits } = req.body;
 
     const [result] = await pool.execute(
-      `INSERT INTO courses (name, description, subject, teacher_id, class_id, credits)
+      `INSERT INTO courses (name, description, subject, teacherId, classId, credits)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [name, description || null, subject, teacher_id || null, class_id || null, credits || 1]
+      [name, description || null, subject, teacherId || null, classId || null, credits || 1]
     );
 
     res.status(201).json({
@@ -88,7 +88,7 @@ router.post('/', authenticateToken, requireRole(['admin', 'teacher']), [
 router.put('/:id', authenticateToken, requireRole(['admin', 'teacher']), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, subject, teacher_id, class_id, credits } = req.body;
+    const { name, description, subject, teacherId, classId, credits } = req.body;
 
     let updateFields = [];
     let params = [];
@@ -105,13 +105,13 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'teacher']), async (
       updateFields.push('subject = ?');
       params.push(subject);
     }
-    if (teacher_id) {
-      updateFields.push('teacher_id = ?');
-      params.push(teacher_id);
+    if (teacherId) {
+      updateFields.push('teacherId = ?');
+      params.push(teacherId);
     }
-    if (class_id) {
-      updateFields.push('class_id = ?');
-      params.push(class_id);
+    if (classId) {
+      updateFields.push('classId = ?');
+      params.push(classId);
     }
     if (credits) {
       updateFields.push('credits = ?');

@@ -242,14 +242,14 @@ const MySchedule = () => {
 1. **Authentification**: Tous les endpoints nécessitent un token JWT valide
 2. **ID Enseignant**: Récupérez l'ID depuis `AuthContext.user.id`
 3. **Format des dates**: Utilisez le format ISO (YYYY-MM-DD) pour les dates
-4. **Nomenclature MySQL**: Toutes les requêtes utilisent le format `snake_case` (first_name, teacher_id, class_id, etc.) conformément au schéma de votre base de données
+4. **Nomenclature MySQL**: Toutes les requêtes utilisent le format `camelCase` (firstName, teacherId, classId, etc.) conformément au schéma de votre base de données
 
 ## Dépannage
 
 Si vous rencontrez des erreurs :
 
 1. Vérifiez que votre serveur MySQL est démarré
-2. Vérifiez que votre base de données utilise le schéma fourni dans `server/database-schema.sql`
-3. Assurez-vous que les colonnes utilisent `snake_case` (first_name, teacher_id, class_id, start_time, etc.)
+2. Vérifiez que votre base de données utilise le bon schéma avec camelCase
+3. Assurez-vous que les colonnes utilisent `camelCase` (firstName, teacherId, classId, startTime, etc.)
 4. Consultez les logs du serveur pour plus de détails sur les erreurs
 5. Vérifiez que les variables d'environnement dans `.env` sont correctement configurées
