@@ -12,31 +12,31 @@ router.get('/', authenticateToken, async (req, res) => {
     
     let query = `
       SELECT c.*,
-             CONCAT(u.\`firstName\`, ' ', u.\`lastName\`) as teacherName,
-             cl.\`name\` as className
+             CONCAT(u.first_name, ' ', u.last_name) as teacherName,
+             cl.name as className
       FROM courses c
-      LEFT JOIN users u ON c.\`teacherId\` = u.\`id\`
-      LEFT JOIN classes cl ON c.\`classId\` = cl.\`id\`
+      LEFT JOIN users u ON c.teacher_id = u.id
+      LEFT JOIN classes cl ON c.class_id = cl.id
       WHERE 1=1
     `;
     let params = [];
 
     if (teacher_id) {
-      query += ' AND c.`teacherId` = ?';
+      query += ' AND c.teacher_id = ?';
       params.push(teacher_id);
     }
 
     if (class_id) {
-      query += ' AND c.`classId` = ?';
+      query += ' AND c.class_id = ?';
       params.push(class_id);
     }
 
     if (subject) {
-      query += ' AND c.`subject` = ?';
+      query += ' AND c.subject = ?';
       params.push(subject);
     }
 
-    query += ' ORDER BY c.`createdAt` DESC';
+    query += ' ORDER BY c.created_at DESC';
 
     console.log('Courses Query:', query);
     console.log('Courses Params:', params);

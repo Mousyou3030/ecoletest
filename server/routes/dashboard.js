@@ -19,28 +19,28 @@ router.get('/admin-stats', authenticateToken, async (req, res) => {
     );
 
     const recentGrades = await pool.execute(
-      `SELECT CONCAT(u.\`firstName\`, ' ', u.\`lastName\`) as user, g.\`createdAt\` as createdAt
+      `SELECT CONCAT(u.first_name, ' ', u.last_name) as user, g.created_at as createdAt
        FROM grades g
-       JOIN users u ON g.\`studentId\` = u.\`id\`
-       ORDER BY g.\`createdAt\` DESC
+       JOIN users u ON g.student_id = u.id
+       ORDER BY g.created_at DESC
        LIMIT 2`
     );
 
     const recentPayments = await pool.execute(
-      `SELECT CONCAT(u.\`firstName\`, ' ', u.\`lastName\`) as user, p.\`paidDate\` as createdAt
+      `SELECT CONCAT(u.first_name, ' ', u.last_name) as user, p.paid_date as createdAt
        FROM payments p
-       JOIN users u ON p.\`studentId\` = u.\`id\`
-       WHERE p.\`status\` = 'paid'
-       ORDER BY p.\`paidDate\` DESC
+       JOIN users u ON p.student_id = u.id
+       WHERE p.status = 'paid'
+       ORDER BY p.paid_date DESC
        LIMIT 2`
     );
 
     const recentAbsences = await pool.execute(
-      `SELECT CONCAT(u.\`firstName\`, ' ', u.\`lastName\`) as user, a.\`createdAt\` as createdAt
+      `SELECT CONCAT(u.first_name, ' ', u.last_name) as user, a.created_at as createdAt
        FROM attendances a
-       JOIN users u ON a.\`studentId\` = u.\`id\`
-       WHERE a.\`status\` = 'absent'
-       ORDER BY a.\`createdAt\` DESC
+       JOIN users u ON a.student_id = u.id
+       WHERE a.status = 'absent'
+       ORDER BY a.created_at DESC
        LIMIT 1`
     );
 
@@ -73,7 +73,7 @@ router.get('/student/:studentId', authenticateToken, async (req, res) => {
     const { studentId } = req.params;
 
     const student = await pool.execute(
-      'SELECT `firstName` as firstName, `lastName` as lastName FROM users WHERE `id` = ? AND `role` = "student"',
+      'SELECT first_name as firstName, last_name as lastName FROM users WHERE id = ? AND role = "student"',
       [studentId]
     );
 
@@ -83,32 +83,32 @@ router.get('/student/:studentId', authenticateToken, async (req, res) => {
 
     const nextClasses = await pool.execute(
       `SELECT
-        s.\`startTime\` as startTime,
-        co.\`name\` as subject,
-        CONCAT(u.\`firstName\`, ' ', u.\`lastName\`) as teacher,
-        s.\`room\`
+        s.start_time as startTime,
+        co.name as subject,
+        CONCAT(u.first_name, ' ', u.last_name) as teacher,
+        s.room
        FROM schedules s
-       JOIN courses co ON s.\`courseId\` = co.\`id\`
-       JOIN users u ON co.\`teacherId\` = u.\`id\`
-       JOIN classes cl ON s.\`classId\` = cl.\`id\`
-       JOIN users st ON st.\`id\` = ?
-       WHERE s.\`dayOfWeek\` = DAYOFWEEK(CURRENT_DATE)
-       AND s.\`startTime\` > CURRENT_TIME
-       ORDER BY s.\`startTime\`
+       JOIN courses co ON s.course_id = co.id
+       JOIN users u ON co.teacher_id = u.id
+       JOIN classes cl ON s.class_id = cl.id
+       JOIN users st ON st.id = ?
+       WHERE s.day_of_week = DAYOFWEEK(CURRENT_DATE)
+       AND s.start_time > CURRENT_TIME
+       ORDER BY s.start_time
        LIMIT 3`,
       [studentId]
     );
 
     const recentGrades = await pool.execute(
       `SELECT
-        co.\`name\` as subject,
-        g.\`grade\`,
-        g.\`maxGrade\` as max,
-        g.\`createdAt\` as date
+        co.name as subject,
+        g.grade,
+        g.max_grade as max,
+        g.created_at as date
        FROM grades g
-       JOIN courses co ON g.\`courseId\` = co.\`id\`
-       WHERE g.\`studentId\` = ?
-       ORDER BY g.\`createdAt\` DESC
+       JOIN courses co ON g.course_id = co.id
+       WHERE g.student_id = ?
+       ORDER BY g.created_at DESC
        LIMIT 4`,
       [studentId]
     );
@@ -122,10 +122,10 @@ router.get('/student/:studentId', authenticateToken, async (req, res) => {
     const attendanceStats = await pool.execute(
       `SELECT
         COUNT(*) as total,
-        SUM(CASE WHEN \`status\` = 'present' THEN 1 ELSE 0 END) as present
+        SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present
        FROM attendances
-       WHERE \`studentId\` = ?
-       AND \`date\` >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)`,
+       WHERE student_id = ?
+       AND date >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)`,
       [studentId]
     );
 
@@ -154,7 +154,7 @@ router.get('/teacher/:teacherId', authenticateToken, async (req, res) => {
     const { teacherId } = req.params;
 
     const teacher = await pool.execute(
-      'SELECT `firstName` as firstName, `lastName` as lastName FROM users WHERE `id` = ? AND `role` = "teacher"',
+      'SELECT first_name as firstName, last_name as lastName FROM users WHERE id = ? AND role = "teacher"',
       [teacherId]
     );
 
@@ -163,50 +163,50 @@ router.get('/teacher/:teacherId', authenticateToken, async (req, res) => {
     }
 
     const myClasses = await pool.execute(
-      `SELECT COUNT(DISTINCT \`classId\`) as count
+      `SELECT COUNT(DISTINCT class_id) as count
        FROM courses
-       WHERE \`teacherId\` = ?`,
+       WHERE teacher_id = ?`,
       [teacherId]
     );
 
     const coursesThisWeek = await pool.execute(
       `SELECT COUNT(*) as count FROM schedules
-       WHERE \`teacherId\` = ?
+       WHERE teacher_id = ?
        AND WEEK(NOW()) = WEEK(CURRENT_DATE)`,
       [teacherId]
     );
 
     const totalStudents = await pool.execute(
-      `SELECT COUNT(DISTINCT a.\`studentId\`) as count
+      `SELECT COUNT(DISTINCT a.student_id) as count
        FROM attendances a
-       JOIN classes cl ON a.\`classId\` = cl.\`id\`
-       WHERE cl.\`teacherId\` = ?`,
+       JOIN classes cl ON a.class_id = cl.id
+       WHERE cl.teacher_id = ?`,
       [teacherId]
     );
 
     const todaySchedule = await pool.execute(
       `SELECT
-        DATE_FORMAT(s.\`startTime\`, '%H:%i') as time,
-        co.\`name\` as subject,
-        cl.\`name\` as class,
-        s.\`room\`
+        DATE_FORMAT(s.start_time, '%H:%i') as time,
+        co.name as subject,
+        cl.name as class,
+        s.room
        FROM schedules s
-       JOIN courses co ON s.\`courseId\` = co.\`id\`
-       JOIN classes cl ON s.\`classId\` = cl.\`id\`
-       WHERE s.\`teacherId\` = ?
-       AND s.\`dayOfWeek\` = DAYOFWEEK(CURRENT_DATE)
-       ORDER BY s.\`startTime\``,
+       JOIN courses co ON s.course_id = co.id
+       JOIN classes cl ON s.class_id = cl.id
+       WHERE s.teacher_id = ?
+       AND s.day_of_week = DAYOFWEEK(CURRENT_DATE)
+       ORDER BY s.start_time`,
       [teacherId]
     );
 
     const attendanceRate = await pool.execute(
       `SELECT
         COUNT(*) as total,
-        SUM(CASE WHEN a.\`status\` = 'present' THEN 1 ELSE 0 END) as present
+        SUM(CASE WHEN a.status = 'present' THEN 1 ELSE 0 END) as present
        FROM attendances a
-       JOIN classes cl ON a.\`classId\` = cl.\`id\`
-       WHERE cl.\`teacherId\` = ?
-       AND a.\`date\` >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)`,
+       JOIN classes cl ON a.class_id = cl.id
+       WHERE cl.teacher_id = ?
+       AND a.date >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)`,
       [teacherId]
     );
 
@@ -240,18 +240,18 @@ router.get('/parent/:parentId', authenticateToken, async (req, res) => {
     const { parentId } = req.params;
 
     const children = await pool.execute(
-      `SELECT u.\`id\`, u.\`firstName\` as firstName, u.\`lastName\` as lastName, '' as className
+      `SELECT u.id, u.first_name as firstName, u.last_name as lastName, '' as className
        FROM users u
-       JOIN parent_children pc ON u.\`id\` = pc.\`childId\`
-       WHERE pc.\`parentId\` = ?`,
+       JOIN parent_children pc ON u.id = pc.child_id
+       WHERE pc.parent_id = ?`,
       [parentId]
     );
 
     const unpaidInvoices = await pool.execute(
       `SELECT COUNT(*) as count
        FROM payments p
-       JOIN parent_children pc ON p.\`studentId\` = pc.\`childId\`
-       WHERE pc.\`parentId\` = ? AND p.\`status\` = 'pending'`,
+       JOIN parent_children pc ON p.student_id = pc.child_id
+       WHERE pc.parent_id = ? AND p.status = 'pending'`,
       [parentId]
     );
 

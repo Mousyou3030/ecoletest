@@ -10,18 +10,18 @@ router.get('/classes/:teacherId', authenticateToken, async (req, res) => {
 
     const classes = await pool.execute(
       `SELECT DISTINCT
-        c.\`id\`,
-        c.\`name\`,
-        c.\`level\`,
-        COUNT(DISTINCT a.\`studentId\`) as studentCount,
-        AVG(g.\`grade\`) as averageGrade,
-        (COUNT(CASE WHEN a.\`status\` = 'present' THEN 1 END) * 100.0 / COUNT(a.\`id\`)) as attendanceRate
+        c.id,
+        c.name,
+        c.level,
+        COUNT(DISTINCT a.student_id) as studentCount,
+        AVG(g.grade) as averageGrade,
+        (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0 / COUNT(a.id)) as attendanceRate
        FROM classes c
-       LEFT JOIN courses co ON c.\`id\` = co.\`classId\`
-       LEFT JOIN attendances a ON c.\`id\` = a.\`classId\`
-       LEFT JOIN grades g ON g.\`courseId\` = co.\`id\`
-       WHERE c.\`teacherId\` = ? OR co.\`teacherId\` = ?
-       GROUP BY c.\`id\`, c.\`name\`, c.\`level\``,
+       LEFT JOIN courses co ON c.id = co.class_id
+       LEFT JOIN attendances a ON c.id = a.class_id
+       LEFT JOIN grades g ON g.course_id = co.id
+       WHERE c.teacher_id = ? OR co.teacher_id = ?
+       GROUP BY c.id, c.name, c.level`,
       [teacherId, teacherId]
     );
 
@@ -29,13 +29,13 @@ router.get('/classes/:teacherId', authenticateToken, async (req, res) => {
       classes[0].map(async (cls) => {
         const [nextLesson] = await pool.execute(
           `SELECT
-            s.\`dayOfWeek\`,
-            DATE_FORMAT(s.\`startTime\`, '%H:%i') as time,
-            co.\`name\` as topic
+            s.day_of_week as dayOfWeek,
+            DATE_FORMAT(s.start_time, '%H:%i') as time,
+            co.name as topic
            FROM schedules s
-           JOIN courses co ON s.\`courseId\` = co.\`id\`
-           WHERE s.\`classId\` = ? AND s.\`teacherId\` = ?
-           ORDER BY s.\`dayOfWeek\`, s.\`startTime\`
+           JOIN courses co ON s.course_id = co.id
+           WHERE s.class_id = ? AND s.teacher_id = ?
+           ORDER BY s.day_of_week, s.start_time
            LIMIT 1`,
           [cls.id, teacherId]
         );
@@ -63,24 +63,24 @@ router.get('/classes/:teacherId/:classId/students', authenticateToken, async (re
 
     const students = await pool.execute(
       `SELECT DISTINCT
-        u.\`id\`,
-        CONCAT(u.\`firstName\`, ' ', u.\`lastName\`) as name,
-        u.\`firstName\`,
-        u.\`lastName\`,
-        (SELECT g.\`grade\`
+        u.id,
+        CONCAT(u.first_name, ' ', u.last_name) as name,
+        u.first_name as firstName,
+        u.last_name as lastName,
+        (SELECT g.grade
          FROM grades g
-         JOIN courses co ON g.\`courseId\` = co.\`id\`
-         WHERE g.\`studentId\` = u.\`id\` AND co.\`classId\` = ?
-         ORDER BY g.\`createdAt\` DESC
+         JOIN courses co ON g.course_id = co.id
+         WHERE g.student_id = u.id AND co.class_id = ?
+         ORDER BY g.created_at DESC
          LIMIT 1) as lastGrade,
-        (SELECT COUNT(CASE WHEN a.\`status\` = 'present' THEN 1 END) * 100.0 / COUNT(a.\`id\`)
+        (SELECT COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0 / COUNT(a.id)
          FROM attendances a
-         WHERE a.\`studentId\` = u.\`id\` AND a.\`classId\` = ?
-         AND a.\`date\` >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)) as attendance
+         WHERE a.student_id = u.id AND a.class_id = ?
+         AND a.date >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)) as attendance
        FROM users u
-       JOIN attendances a ON u.\`id\` = a.\`studentId\`
-       WHERE a.\`classId\` = ? AND u.\`role\` = 'student'
-       GROUP BY u.\`id\`, u.\`firstName\`, u.\`lastName\``,
+       JOIN attendances a ON u.id = a.student_id
+       WHERE a.class_id = ? AND u.role = 'student'
+       GROUP BY u.id, u.first_name, u.last_name`,
       [classId, classId, classId]
     );
 
@@ -104,20 +104,20 @@ router.get('/courses/:teacherId', authenticateToken, async (req, res) => {
 
     const courses = await pool.execute(
       `SELECT
-        co.\`id\`,
-        co.\`name\` as title,
-        co.\`description\`,
-        co.\`subject\`,
-        co.\`teacherId\`,
-        co.\`classId\`,
-        co.\`createdAt\`,
-        cl.\`name\` as className,
-        (SELECT COUNT(*) FROM grades g WHERE g.\`courseId\` = co.\`id\`) as gradeCount,
-        (SELECT COUNT(DISTINCT s.\`id\`) FROM schedules s WHERE s.\`courseId\` = co.\`id\`) as sessionCount
+        co.id,
+        co.name as title,
+        co.description,
+        co.subject,
+        co.teacher_id as teacherId,
+        co.class_id as classId,
+        co.created_at as createdAt,
+        cl.name as className,
+        (SELECT COUNT(*) FROM grades g WHERE g.course_id = co.id) as gradeCount,
+        (SELECT COUNT(DISTINCT s.id) FROM schedules s WHERE s.course_id = co.id) as sessionCount
        FROM courses co
-       LEFT JOIN classes cl ON co.\`classId\` = cl.\`id\`
-       WHERE co.\`teacherId\` = ?
-       ORDER BY co.\`createdAt\` DESC`,
+       LEFT JOIN classes cl ON co.class_id = cl.id
+       WHERE co.teacher_id = ?
+       ORDER BY co.created_at DESC`,
       [teacherId]
     );
 
@@ -134,20 +134,20 @@ router.get('/schedules/:teacherId', authenticateToken, async (req, res) => {
 
     const schedules = await pool.execute(
       `SELECT
-        s.\`id\`,
-        s.\`dayOfWeek\`,
-        DATE_FORMAT(s.\`startTime\`, '%H:%i') as startTime,
-        DATE_FORMAT(s.\`endTime\`, '%H:%i') as endTime,
-        s.\`room\`,
-        co.\`name\` as courseName,
-        co.\`subject\`,
-        cl.\`name\` as className,
-        cl.\`id\` as classId
+        s.id,
+        s.day_of_week as dayOfWeek,
+        DATE_FORMAT(s.start_time, '%H:%i') as startTime,
+        DATE_FORMAT(s.end_time, '%H:%i') as endTime,
+        s.room,
+        co.name as courseName,
+        co.subject,
+        cl.name as className,
+        cl.id as classId
        FROM schedules s
-       JOIN courses co ON s.\`courseId\` = co.\`id\`
-       JOIN classes cl ON s.\`classId\` = cl.\`id\`
-       WHERE s.\`teacherId\` = ?
-       ORDER BY s.\`dayOfWeek\`, s.\`startTime\``,
+       JOIN courses co ON s.course_id = co.id
+       JOIN classes cl ON s.class_id = cl.id
+       WHERE s.teacher_id = ?
+       ORDER BY s.day_of_week, s.start_time`,
       [teacherId]
     );
 
@@ -183,36 +183,36 @@ router.get('/grades/:teacherId', authenticateToken, async (req, res) => {
 
     let query = `
       SELECT
-        g.\`id\`,
-        g.\`grade\`,
-        g.\`maxGrade\`,
-        g.\`examType\`,
-        g.\`comments\`,
-        g.\`createdAt\`,
-        CONCAT(u.\`firstName\`, ' ', u.\`lastName\`) as studentName,
-        u.\`id\` as studentId,
-        co.\`name\` as courseName,
-        co.\`id\` as courseId,
-        cl.\`name\` as className
+        g.id,
+        g.grade,
+        g.max_grade as maxGrade,
+        g.exam_type as examType,
+        g.comments,
+        g.created_at as createdAt,
+        CONCAT(u.first_name, ' ', u.last_name) as studentName,
+        u.id as studentId,
+        co.name as courseName,
+        co.id as courseId,
+        cl.name as className
        FROM grades g
-       JOIN users u ON g.\`studentId\` = u.\`id\`
-       JOIN courses co ON g.\`courseId\` = co.\`id\`
-       LEFT JOIN classes cl ON co.\`classId\` = cl.\`id\`
-       WHERE co.\`teacherId\` = ?
+       JOIN users u ON g.student_id = u.id
+       JOIN courses co ON g.course_id = co.id
+       LEFT JOIN classes cl ON co.class_id = cl.id
+       WHERE co.teacher_id = ?
     `;
     const params = [teacherId];
 
     if (courseId) {
-      query += ' AND co.\`id\` = ?';
+      query += ' AND co.id = ?';
       params.push(courseId);
     }
 
     if (classId) {
-      query += ' AND cl.\`id\` = ?';
+      query += ' AND cl.id = ?';
       params.push(classId);
     }
 
-    query += ' ORDER BY g.\`createdAt\` DESC';
+    query += ' ORDER BY g.created_at DESC';
 
     const grades = await pool.execute(query, params);
     res.json(grades[0]);
@@ -229,34 +229,34 @@ router.get('/attendances/:teacherId', authenticateToken, async (req, res) => {
 
     let query = `
       SELECT
-        a.\`id\`,
-        a.\`date\`,
-        a.\`status\`,
-        a.\`notes\`,
-        CONCAT(u.\`firstName\`, ' ', u.\`lastName\`) as studentName,
-        u.\`id\` as studentId,
-        cl.\`name\` as className,
-        cl.\`id\` as classId
+        a.id,
+        a.date,
+        a.status,
+        a.notes,
+        CONCAT(u.first_name, ' ', u.last_name) as studentName,
+        u.id as studentId,
+        cl.name as className,
+        cl.id as classId
        FROM attendances a
-       JOIN users u ON a.\`studentId\` = u.\`id\`
-       JOIN classes cl ON a.\`classId\` = cl.\`id\`
-       WHERE cl.\`teacherId\` = ?
+       JOIN users u ON a.student_id = u.id
+       JOIN classes cl ON a.class_id = cl.id
+       WHERE cl.teacher_id = ?
     `;
     const params = [teacherId];
 
     if (classId) {
-      query += ' AND cl.\`id\` = ?';
+      query += ' AND cl.id = ?';
       params.push(classId);
     }
 
     if (date) {
-      query += ' AND a.\`date\` = ?';
+      query += ' AND a.date = ?';
       params.push(date);
     } else {
-      query += ' AND a.\`date\` >= DATE_SUB(CURRENT_DATE, INTERVAL 7 DAY)';
+      query += ' AND a.date >= DATE_SUB(CURRENT_DATE, INTERVAL 7 DAY)';
     }
 
-    query += ' ORDER BY a.\`date\` DESC, studentName';
+    query += ' ORDER BY a.date DESC, studentName';
 
     const attendances = await pool.execute(query, params);
     res.json(attendances[0]);

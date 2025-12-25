@@ -242,13 +242,14 @@ const MySchedule = () => {
 1. **Authentification**: Tous les endpoints nécessitent un token JWT valide
 2. **ID Enseignant**: Récupérez l'ID depuis `AuthContext.user.id`
 3. **Format des dates**: Utilisez le format ISO (YYYY-MM-DD) pour les dates
-4. **Backticks MySQL**: Toutes les requêtes utilisent des backticks pour les noms de colonnes (nomenclature camelCase)
+4. **Nomenclature MySQL**: Toutes les requêtes utilisent le format `snake_case` (first_name, teacher_id, etc.) conformément au schéma de votre base de données
 
 ## Dépannage
 
 Si vous rencontrez des erreurs :
 
 1. Vérifiez que votre serveur MySQL est démarré
-2. Exécutez `node show-structure.js` dans le dossier server pour voir la structure de vos tables
-3. Vérifiez que les colonnes de votre base utilisent bien la nomenclature camelCase (firstName, teacherId, etc.)
+2. Vérifiez que votre base de données utilise le schéma fourni dans `server/database-schema.sql`
+3. Assurez-vous que les colonnes suivent la nomenclature `snake_case` (first_name, teacher_id, class_id, etc.)
 4. Consultez les logs du serveur pour plus de détails sur les erreurs
+5. Vérifiez que les variables d'environnement dans `.env` sont correctement configurées
