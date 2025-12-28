@@ -68,21 +68,22 @@ CREATE TABLE IF NOT EXISTS courses (
 
 -- Table des emplois du temps
 CREATE TABLE IF NOT EXISTS schedules (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    courseId INT NOT NULL,
-    classId INT NOT NULL,
-    teacherId INT,
-    dayOfWeek INT NOT NULL COMMENT '1=Dimanche, 2=Lundi, ..., 7=Samedi',
+    id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    day ENUM('Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche') NOT NULL,
     startTime TIME NOT NULL,
     endTime TIME NOT NULL,
+    subject VARCHAR(100) NOT NULL,
+    teacherId VARCHAR(36),
+    classId VARCHAR(36) NOT NULL,
     room VARCHAR(50),
+    isActive BOOLEAN DEFAULT TRUE,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (courseId) REFERENCES courses(id) ON DELETE CASCADE,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (classId) REFERENCES classes(id) ON DELETE CASCADE,
     FOREIGN KEY (teacherId) REFERENCES users(id) ON DELETE SET NULL,
-    INDEX idx_day_time (dayOfWeek, startTime),
-    INDEX idx_course (courseId),
-    INDEX idx_teacher (teacherId)
+    INDEX idx_day_time (day, startTime),
+    INDEX idx_teacher (teacherId),
+    INDEX idx_class (classId)
 );
 
 -- Table des présences
@@ -208,8 +209,9 @@ INSERT IGNORE INTO courses (id, title, teacherId, classId, subject) VALUES
 (1, 'Mathématiques CM1', 2, 1, 'Mathématiques');
 
 -- Créer un emploi du temps (Lundi 09:00-10:00)
-INSERT IGNORE INTO schedules (courseId, classId, teacherId, dayOfWeek, startTime, endTime, room) VALUES
-(1, 1, 2, 2, '09:00:00', '10:00:00', 'Salle 101');
+-- Note: l'ID sera généré automatiquement par UUID()
+-- INSERT IGNORE INTO schedules (subject, classId, teacherId, day, startTime, endTime, room) VALUES
+-- ('Mathématiques', 1, 2, 'Lundi', '09:00:00', '10:00:00', 'Salle 101');
 
 -- Lier parent à enfant
 INSERT IGNORE INTO parent_children (parentId, childId, relationship) VALUES

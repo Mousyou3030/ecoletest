@@ -29,13 +29,14 @@ router.get('/classes/:teacherId', authenticateToken, async (req, res) => {
       classes[0].map(async (cls) => {
         const [nextLesson] = await pool.execute(
           `SELECT
-            s.dayOfWeek,
+            s.day,
             DATE_FORMAT(s.startTime, '%H:%i') as time,
-            co.title as topic
+            s.subject as topic
            FROM schedules s
-           JOIN courses co ON s.courseId = co.id
            WHERE s.classId = ? AND s.teacherId = ?
-           ORDER BY s.dayOfWeek, s.startTime
+           ORDER BY
+             FIELD(s.day, 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'),
+             s.startTime
            LIMIT 1`,
           [cls.id, teacherId]
         );
@@ -113,7 +114,10 @@ router.get('/courses/:teacherId', authenticateToken, async (req, res) => {
         co.createdAt,
         cl.name as className,
         (SELECT COUNT(*) FROM grades g WHERE g.courseId = co.id) as gradeCount,
-        (SELECT COUNT(DISTINCT s.id) FROM schedules s WHERE s.courseId = co.id) as sessionCount
+        (SELECT COUNT(DISTINCT s.id) FROM schedules s
+         WHERE s.classId = co.classId
+         AND s.teacherId = co.teacherId
+         AND s.subject = co.subject) as sessionCount
        FROM courses co
        LEFT JOIN classes cl ON co.classId = cl.id
        WHERE co.teacherId = ?
@@ -135,27 +139,27 @@ router.get('/schedules/:teacherId', authenticateToken, async (req, res) => {
     const schedules = await pool.execute(
       `SELECT
         s.id,
-        s.dayOfWeek,
+        s.day,
         DATE_FORMAT(s.startTime, '%H:%i') as startTime,
         DATE_FORMAT(s.endTime, '%H:%i') as endTime,
         s.room,
-        co.title as courseName,
-        co.subject,
+        s.subject as courseName,
+        s.subject,
         cl.name as className,
         cl.id as classId
        FROM schedules s
-       JOIN courses co ON s.courseId = co.id
        JOIN classes cl ON s.classId = cl.id
        WHERE s.teacherId = ?
-       ORDER BY s.dayOfWeek, s.startTime`,
+       ORDER BY
+         FIELD(s.day, 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'),
+         s.startTime`,
       [teacherId]
     );
 
     const schedulesByDay = {};
-    const daysOfWeek = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 
     schedules[0].forEach(schedule => {
-      const dayName = daysOfWeek[schedule.dayOfWeek - 1];
+      const dayName = schedule.day;
       if (!schedulesByDay[dayName]) {
         schedulesByDay[dayName] = [];
       }

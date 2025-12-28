@@ -84,16 +84,23 @@ router.get('/student/:studentId', authenticateToken, async (req, res) => {
     const nextClasses = await pool.execute(
       `SELECT
         s.startTime,
-        co.title as subject,
+        s.subject,
         CONCAT(u.firstName, ' ', u.lastName) as teacher,
         s.room
        FROM schedules s
-       JOIN courses co ON s.courseId = co.id
-       JOIN users u ON co.teacherId = u.id
+       JOIN users u ON s.teacherId = u.id
        JOIN classes cl ON s.classId = cl.id
-       JOIN users st ON st.id = ?
-       WHERE s.dayOfWeek = DAYOFWEEK(CURRENT_DATE)
+       WHERE s.day = CASE DAYOFWEEK(CURRENT_DATE)
+         WHEN 1 THEN 'Dimanche'
+         WHEN 2 THEN 'Lundi'
+         WHEN 3 THEN 'Mardi'
+         WHEN 4 THEN 'Mercredi'
+         WHEN 5 THEN 'Jeudi'
+         WHEN 6 THEN 'Vendredi'
+         WHEN 7 THEN 'Samedi'
+       END
        AND s.startTime > CURRENT_TIME
+       AND s.classId IN (SELECT classId FROM class_students WHERE studentId = ?)
        ORDER BY s.startTime
        LIMIT 3`,
       [studentId]
@@ -187,14 +194,21 @@ router.get('/teacher/:teacherId', authenticateToken, async (req, res) => {
     const todaySchedule = await pool.execute(
       `SELECT
         DATE_FORMAT(s.startTime, '%H:%i') as time,
-        co.title as subject,
+        s.subject,
         cl.name as class,
         s.room
        FROM schedules s
-       JOIN courses co ON s.courseId = co.id
        JOIN classes cl ON s.classId = cl.id
        WHERE s.teacherId = ?
-       AND s.dayOfWeek = DAYOFWEEK(CURRENT_DATE)
+       AND s.day = CASE DAYOFWEEK(CURRENT_DATE)
+         WHEN 1 THEN 'Dimanche'
+         WHEN 2 THEN 'Lundi'
+         WHEN 3 THEN 'Mardi'
+         WHEN 4 THEN 'Mercredi'
+         WHEN 5 THEN 'Jeudi'
+         WHEN 6 THEN 'Vendredi'
+         WHEN 7 THEN 'Samedi'
+       END
        ORDER BY s.startTime`,
       [teacherId]
     );
