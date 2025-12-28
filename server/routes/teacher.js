@@ -31,7 +31,7 @@ router.get('/classes/:teacherId', authenticateToken, async (req, res) => {
           `SELECT
             s.dayOfWeek,
             DATE_FORMAT(s.startTime, '%H:%i') as time,
-            co.name as topic
+            co.title as topic
            FROM schedules s
            JOIN courses co ON s.courseId = co.id
            WHERE s.classId = ? AND s.teacherId = ?
@@ -105,7 +105,7 @@ router.get('/courses/:teacherId', authenticateToken, async (req, res) => {
     const courses = await pool.execute(
       `SELECT
         co.id,
-        co.name as title,
+        co.title,
         co.description,
         co.subject,
         co.teacherId,
@@ -139,7 +139,7 @@ router.get('/schedules/:teacherId', authenticateToken, async (req, res) => {
         DATE_FORMAT(s.startTime, '%H:%i') as startTime,
         DATE_FORMAT(s.endTime, '%H:%i') as endTime,
         s.room,
-        co.name as courseName,
+        co.title as courseName,
         co.subject,
         cl.name as className,
         cl.id as classId
@@ -191,7 +191,7 @@ router.get('/grades/:teacherId', authenticateToken, async (req, res) => {
         g.createdAt,
         CONCAT(u.firstName, ' ', u.lastName) as studentName,
         u.id as studentId,
-        co.name as courseName,
+        co.title as courseName,
         co.id as courseId,
         cl.name as className
        FROM grades g

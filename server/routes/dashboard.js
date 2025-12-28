@@ -84,7 +84,7 @@ router.get('/student/:studentId', authenticateToken, async (req, res) => {
     const nextClasses = await pool.execute(
       `SELECT
         s.startTime,
-        co.name as subject,
+        co.title as subject,
         CONCAT(u.firstName, ' ', u.lastName) as teacher,
         s.room
        FROM schedules s
@@ -101,7 +101,7 @@ router.get('/student/:studentId', authenticateToken, async (req, res) => {
 
     const recentGrades = await pool.execute(
       `SELECT
-        co.name as subject,
+        co.title as subject,
         g.grade,
         g.maxGrade as max,
         g.createdAt as date
@@ -187,7 +187,7 @@ router.get('/teacher/:teacherId', authenticateToken, async (req, res) => {
     const todaySchedule = await pool.execute(
       `SELECT
         DATE_FORMAT(s.startTime, '%H:%i') as time,
-        co.name as subject,
+        co.title as subject,
         cl.name as class,
         s.room
        FROM schedules s

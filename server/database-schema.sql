@@ -49,13 +49,17 @@ CREATE TABLE IF NOT EXISTS class_students (
 -- Table des cours
 CREATE TABLE IF NOT EXISTS courses (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
+    title VARCHAR(200) NOT NULL,
     description TEXT,
     teacherId INT,
     classId INT,
     subject VARCHAR(100),
-    credits INT DEFAULT 1,
+    startDate DATE,
+    endDate DATE,
+    materials JSON,
+    isActive BOOLEAN DEFAULT TRUE,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (teacherId) REFERENCES users(id) ON DELETE SET NULL,
     FOREIGN KEY (classId) REFERENCES classes(id) ON DELETE CASCADE,
     INDEX idx_teacher (teacherId),
@@ -200,7 +204,7 @@ INSERT IGNORE INTO class_students (classId, studentId, isActive) VALUES
 (1, 3, TRUE);
 
 -- Créer un cours
-INSERT IGNORE INTO courses (id, name, teacherId, classId, subject) VALUES
+INSERT IGNORE INTO courses (id, title, teacherId, classId, subject) VALUES
 (1, 'Mathématiques CM1', 2, 1, 'Mathématiques');
 
 -- Créer un emploi du temps (Lundi 09:00-10:00)
