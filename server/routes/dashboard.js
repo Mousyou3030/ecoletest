@@ -254,11 +254,78 @@ router.get('/parent/:parentId', authenticateToken, async (req, res) => {
     const { parentId } = req.params;
 
     const children = await pool.execute(
-      `SELECT u.id, u.firstName, u.lastName, '' as className
+      `SELECT u.id, u.firstName, u.lastName, c.name as className, c.id as classId
        FROM users u
        JOIN parent_children pc ON u.id = pc.childId
-       WHERE pc.parentId = ?`,
+       LEFT JOIN attendances a ON u.id = a.studentId
+       LEFT JOIN classes c ON a.classId = c.id
+       WHERE pc.parentId = ?
+       GROUP BY u.id, u.firstName, u.lastName, c.name, c.id
+       LIMIT 10`,
       [parentId]
+    );
+
+    const childrenWithData = await Promise.all(
+      children[0].map(async (child) => {
+        const recentGrades = await pool.execute(
+          `SELECT co.title as subject, g.value as grade, g.maxValue as max, g.date
+           FROM grades g
+           JOIN courses co ON g.courseId = co.id
+           WHERE g.studentId = ?
+           ORDER BY g.createdAt DESC
+           LIMIT 5`,
+          [child.id]
+        );
+
+        const avgGrade = recentGrades[0].length > 0
+          ? recentGrades[0].reduce((acc, g) => acc + (g.grade / g.max) * 20, 0) / recentGrades[0].length
+          : 0;
+
+        const attendanceStats = await pool.execute(
+          `SELECT
+            COUNT(*) as total,
+            SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present
+           FROM attendances
+           WHERE studentId = ?
+           AND date >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)`,
+          [child.id]
+        );
+
+        const attendance = attendanceStats[0][0].total > 0
+          ? Math.round((attendanceStats[0][0].present / attendanceStats[0][0].total) * 100)
+          : 0;
+
+        const nextClass = await pool.execute(
+          `SELECT s.subject, DATE_FORMAT(s.startTime, '%H:%i') as time, s.room
+           FROM schedules s
+           JOIN classes c ON s.classId = c.id
+           JOIN attendances a ON a.classId = c.id
+           WHERE a.studentId = ?
+           AND s.day = CASE DAYOFWEEK(CURRENT_DATE)
+             WHEN 1 THEN 'Dimanche'
+             WHEN 2 THEN 'Lundi'
+             WHEN 3 THEN 'Mardi'
+             WHEN 4 THEN 'Mercredi'
+             WHEN 5 THEN 'Jeudi'
+             WHEN 6 THEN 'Vendredi'
+             WHEN 7 THEN 'Samedi'
+           END
+           ORDER BY s.startTime
+           LIMIT 1`,
+          [child.id]
+        );
+
+        return {
+          id: child.id,
+          firstName: child.firstName,
+          lastName: child.lastName,
+          className: child.className || 'Non assigné',
+          average: Math.round(avgGrade * 10) / 10,
+          attendance: attendance,
+          nextClass: nextClass[0][0] || null,
+          recentGrades: recentGrades[0] || []
+        };
+      })
     );
 
     const unpaidInvoices = await pool.execute(
@@ -269,10 +336,36 @@ router.get('/parent/:parentId', authenticateToken, async (req, res) => {
       [parentId]
     );
 
+    const upcomingEvents = await pool.execute(
+      `SELECT DISTINCT
+        DATE_FORMAT(s.startTime, '%d/%m') as date,
+        s.subject as event,
+        u.firstName as childName
+       FROM schedules s
+       JOIN classes c ON s.classId = c.id
+       JOIN attendances a ON a.classId = c.id
+       JOIN users u ON a.studentId = u.id
+       JOIN parent_children pc ON u.id = pc.childId
+       WHERE pc.parentId = ?
+       AND s.day IN (
+         CASE DAYOFWEEK(DATE_ADD(CURRENT_DATE, INTERVAL 1 DAY))
+           WHEN 1 THEN 'Dimanche' WHEN 2 THEN 'Lundi' WHEN 3 THEN 'Mardi'
+           WHEN 4 THEN 'Mercredi' WHEN 5 THEN 'Jeudi' WHEN 6 THEN 'Vendredi'
+           WHEN 7 THEN 'Samedi' END,
+         CASE DAYOFWEEK(DATE_ADD(CURRENT_DATE, INTERVAL 2 DAY))
+           WHEN 1 THEN 'Dimanche' WHEN 2 THEN 'Lundi' WHEN 3 THEN 'Mardi'
+           WHEN 4 THEN 'Mercredi' WHEN 5 THEN 'Jeudi' WHEN 6 THEN 'Vendredi'
+           WHEN 7 THEN 'Samedi' END
+       )
+       ORDER BY s.startTime
+       LIMIT 5`,
+      [parentId]
+    );
+
     res.json({
-      children: children[0] || [],
+      children: childrenWithData,
       unpaidInvoices: unpaidInvoices[0][0]?.count || 0,
-      upcomingEvents: []
+      upcomingEvents: upcomingEvents[0] || []
     });
   } catch (error) {
     console.error('Erreur lors de la récupération du dashboard parent:', error);

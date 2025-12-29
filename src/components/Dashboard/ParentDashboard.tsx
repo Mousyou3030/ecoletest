@@ -42,27 +42,35 @@ const ParentDashboard: React.FC = () => {
   if (error) return <div className="text-red-600">{error}</div>;
   if (!data) return <div className="text-gray-600">Aucune donnée disponible</div>;
 
-  const children = data.children.map((child, index) => ({
+  const children = data.children.map((child: any) => ({
     id: child.id,
     name: `${child.firstName} ${child.lastName}`,
     class: child.className,
-    average: 15.2 + Math.random() * 4,
-    attendance: 90 + Math.random() * 8,
-    nextClass: { subject: 'Mathématiques', time: '10:00', room: 'Salle 101' }
+    average: child.average || 0,
+    attendance: child.attendance || 0,
+    nextClass: child.nextClass || null,
+    recentGrades: child.recentGrades || []
   }));
 
-  const recentEvents = [
-    { type: 'grade', child: children[0]?.name.split(' ')[0] || 'Élève', message: 'Nouvelle note en Mathématiques: 16/20', time: '2h' },
-    { type: 'absence', child: children[1]?.name.split(' ')[0] || 'Élève', message: 'Absence signalée en Histoire', time: '1 jour' },
-    { type: 'payment', child: children[0]?.name.split(' ')[0] || 'Élève', message: 'Paiement cantine effectué', time: '2 jours' },
-    { type: 'meeting', child: children[1]?.name.split(' ')[0] || 'Élève', message: 'Rendez-vous parent-prof programmé', time: '3 jours' }
-  ];
+  const recentEvents = children.flatMap((child: any, index: number) => {
+    const events = [];
+    if (child.recentGrades && child.recentGrades.length > 0) {
+      const latestGrade = child.recentGrades[0];
+      events.push({
+        type: 'grade',
+        child: child.name.split(' ')[0],
+        message: `Nouvelle note en ${latestGrade.subject}: ${latestGrade.grade}/${latestGrade.max}`,
+        time: new Date(latestGrade.date).toLocaleDateString('fr-FR')
+      });
+    }
+    return events;
+  }).slice(0, 4);
 
-  const upcomingEvents = [
-    { date: '22/01', event: 'Réunion parents-professeurs', child: children[0]?.name.split(' ')[0] || 'Élève' },
-    { date: '25/01', event: 'Contrôle de Mathématiques', child: children[1]?.name.split(' ')[0] || 'Élève' },
-    { date: '28/01', event: 'Sortie scolaire au musée', child: children[0]?.name.split(' ')[0] || 'Élève' }
-  ];
+  const upcomingEvents = data.upcomingEvents?.map((event: any) => ({
+    date: event.date,
+    event: event.event,
+    child: event.childName
+  })) || [];
 
   return (
     <div className="space-y-6">
