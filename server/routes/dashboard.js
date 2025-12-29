@@ -53,7 +53,7 @@ router.get('/admin-stats', authenticateToken, async (req, res) => {
     );
 
     const avgGrades = await pool.execute(
-      `SELECT AVG((value / maxValue) * 100) as avg FROM grades
+      `SELECT AVG(value * 5) as avg FROM grades
        WHERE createdAt >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)`
     );
 
@@ -178,7 +178,7 @@ router.get('/student/:studentId', authenticateToken, async (req, res) => {
       `SELECT
         co.title as subject,
         g.value as grade,
-        g.maxValue as max,
+        20 as max,
         g.createdAt as date
        FROM grades g
        JOIN courses co ON g.courseId = co.id
@@ -336,7 +336,7 @@ router.get('/parent/:parentId', authenticateToken, async (req, res) => {
     const childrenWithData = await Promise.all(
       children[0].map(async (child) => {
         const recentGrades = await pool.execute(
-          `SELECT co.title as subject, g.value as grade, g.maxValue as max, g.date
+          `SELECT co.title as subject, g.value as grade, 20 as max, g.createdAt as date
            FROM grades g
            JOIN courses co ON g.courseId = co.id
            WHERE g.studentId = ?
@@ -346,7 +346,7 @@ router.get('/parent/:parentId', authenticateToken, async (req, res) => {
         );
 
         const avgGrade = recentGrades[0].length > 0
-          ? recentGrades[0].reduce((acc, g) => acc + (g.grade / g.max) * 20, 0) / recentGrades[0].length
+          ? recentGrades[0].reduce((acc, g) => acc + parseFloat(g.grade), 0) / recentGrades[0].length
           : 0;
 
         const attendanceStats = await pool.execute(
