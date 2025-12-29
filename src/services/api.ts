@@ -342,4 +342,26 @@ export const dashboardService = {
   }
 };
 
+export const teacherService = {
+  getClasses: async (teacherId: string) => {
+    const response = await api.get(`/teacher/classes/${teacherId}`);
+    return response.data;
+  },
+
+  getCourses: async (teacherId: string) => {
+    const response = await api.get(`/teacher/courses/${teacherId}`);
+    return response.data;
+  },
+
+  getSchedules: async (teacherId: string) => {
+    const response = await api.get(`/teacher/schedules/${teacherId}`);
+    return response.data;
+  },
+
+  getStudentsByClass: async (teacherId: string, classId: string) => {
+    const response = await api.get(`/teacher/classes/${teacherId}/${classId}/students`);
+    return response.data;
+  }
+};
+
 export default api;

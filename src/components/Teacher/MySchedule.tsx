@@ -1,94 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, Users, BookOpen, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Schedule } from '../../types';
+import { useAuth } from '../../contexts/AuthContext';
+import { teacherService } from '../../services/api';
+import LoadingSpinner from '../Common/LoadingSpinner';
 
 const MySchedule: React.FC = () => {
+  const { user } = useAuth();
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [viewMode, setViewMode] = useState<'week' | 'day'>('week');
+  const [schedules, setSchedules] = useState<any>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // Mock schedule data for the teacher
-  const [schedules] = useState<Schedule[]>([
-    {
-      id: '1',
-      day: 'Lundi',
-      startTime: '08:00',
-      endTime: '09:00',
-      subject: 'Mathématiques',
-      teacherId: '2',
-      classId: '1',
-      room: 'Salle 101'
-    },
-    {
-      id: '2',
-      day: 'Lundi',
-      startTime: '10:00',
-      endTime: '11:00',
-      subject: 'Mathématiques',
-      teacherId: '2',
-      classId: '2',
-      room: 'Salle 101'
-    },
-    {
-      id: '3',
-      day: 'Mardi',
-      startTime: '09:00',
-      endTime: '10:00',
-      subject: 'Algèbre',
-      teacherId: '2',
-      classId: '3',
-      room: 'Salle 203'
-    },
-    {
-      id: '4',
-      day: 'Mardi',
-      startTime: '14:00',
-      endTime: '15:00',
-      subject: 'Géométrie',
-      teacherId: '2',
-      classId: '1',
-      room: 'Salle 101'
-    },
-    {
-      id: '5',
-      day: 'Mercredi',
-      startTime: '08:00',
-      endTime: '09:00',
-      subject: 'Mathématiques',
-      teacherId: '2',
-      classId: '2',
-      room: 'Salle 101'
-    },
-    {
-      id: '6',
-      day: 'Jeudi',
-      startTime: '10:00',
-      endTime: '11:00',
-      subject: 'Algèbre',
-      teacherId: '2',
-      classId: '3',
-      room: 'Salle 203'
-    },
-    {
-      id: '7',
-      day: 'Vendredi',
-      startTime: '14:00',
-      endTime: '15:00',
-      subject: 'Mathématiques',
-      teacherId: '2',
-      classId: '1',
-      room: 'Salle 101'
+  useEffect(() => {
+    if (user?.id) {
+      fetchSchedules();
     }
-  ]);
+  }, [user?.id]);
 
-  const classes = [
-    { id: '1', name: '6ème A' },
-    { id: '2', name: '6ème B' },
-    { id: '3', name: '3ème A' }
-  ];
+  const fetchSchedules = async () => {
+    try {
+      setLoading(true);
+      const data = await teacherService.getSchedules(user!.id);
+      setSchedules(data);
+    } catch (err) {
+      console.error('Erreur lors du chargement du planning:', err);
+      setError('Erreur lors du chargement du planning');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) return <LoadingSpinner />;
+  if (error) return <div className="text-red-600">{error}</div>;
 
   const days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
   const timeSlots = [
-    '08:00', '09:00', '10:00', '11:00', '12:00', 
+    '08:00', '09:00', '10:00', '11:00', '12:00',
     '13:00', '14:00', '15:00', '16:00', '17:00'
   ];
 
@@ -116,20 +65,22 @@ const MySchedule: React.FC = () => {
   };
 
   const getScheduleForTimeSlot = (day: string, time: string) => {
-    return schedules.find(s => s.day === day && s.startTime === time);
+    const daySchedules = schedules[day] || [];
+    return daySchedules.find((s: any) => s.startTime === time);
   };
 
   const getTodaySchedule = () => {
     const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long' });
     const todayCapitalized = today.charAt(0).toUpperCase() + today.slice(1);
-    return schedules.filter(s => s.day === todayCapitalized);
+    return schedules[todayCapitalized] || [];
   };
 
   const getWeekStats = () => {
-    const totalHours = schedules.length;
-    const uniqueClasses = new Set(schedules.map(s => s.classId)).size;
-    const subjects = new Set(schedules.map(s => s.subject)).size;
-    
+    const allSchedules = Object.values(schedules).flat() as any[];
+    const totalHours = allSchedules.length;
+    const uniqueClasses = new Set(allSchedules.map(s => s.classId)).size;
+    const subjects = new Set(allSchedules.map(s => s.subject)).size;
+
     return { totalHours, uniqueClasses, subjects };
   };
 

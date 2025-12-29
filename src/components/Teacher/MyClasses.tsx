@@ -1,75 +1,61 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Users, BookOpen, Calendar, TrendingUp, MessageSquare, FileText } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { teacherService } from '../../services/api';
+import LoadingSpinner from '../Common/LoadingSpinner';
 
 const MyClasses: React.FC = () => {
-  const [selectedClass, setSelectedClass] = useState('1');
+  const { user } = useAuth();
+  const [selectedClass, setSelectedClass] = useState<string>('');
+  const [myClasses, setMyClasses] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [error, setError] = useState('');
 
-  // Mock data for teacher's classes
-  const myClasses = [
-    {
-      id: '1',
-      name: '6ème A',
-      subject: 'Mathématiques',
-      studentCount: 28,
-      averageGrade: 14.2,
-      attendanceRate: 95,
-      nextLesson: { date: 'Aujourd\'hui', time: '10:00', topic: 'Équations du 1er degré' }
-    },
-    {
-      id: '2',
-      name: '6ème B',
-      subject: 'Mathématiques',
-      studentCount: 26,
-      averageGrade: 13.8,
-      attendanceRate: 92,
-      nextLesson: { date: 'Demain', time: '08:00', topic: 'Fractions' }
-    },
-    {
-      id: '3',
-      name: '3ème A',
-      subject: 'Algèbre',
-      studentCount: 24,
-      averageGrade: 15.1,
-      attendanceRate: 97,
-      nextLesson: { date: 'Lundi', time: '14:00', topic: 'Fonctions linéaires' }
+  useEffect(() => {
+    if (user?.id) {
+      fetchClasses();
     }
-  ];
+  }, [user?.id]);
 
-  // Mock students data for selected class
-  const students = [
-    {
-      id: '1',
-      name: 'Sophie Dupont',
-      avatar: 'https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=150',
-      lastGrade: 16,
-      attendance: 98,
-      behavior: 'excellent'
-    },
-    {
-      id: '2',
-      name: 'Lucas Martin',
-      avatar: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=150',
-      lastGrade: 12,
-      attendance: 89,
-      behavior: 'good'
-    },
-    {
-      id: '3',
-      name: 'Emma Bernard',
-      avatar: 'https://images.pexels.com/photos/1181686/pexels-photo-1181686.jpeg?auto=compress&cs=tinysrgb&w=150',
-      lastGrade: 18,
-      attendance: 100,
-      behavior: 'excellent'
-    },
-    {
-      id: '4',
-      name: 'Thomas Dubois',
-      avatar: 'https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg?auto=compress&cs=tinysrgb&w=150',
-      lastGrade: 14,
-      attendance: 94,
-      behavior: 'good'
+  useEffect(() => {
+    if (selectedClass && user?.id) {
+      fetchStudents();
     }
-  ];
+  }, [selectedClass, user?.id]);
+
+  const fetchClasses = async () => {
+    try {
+      setLoading(true);
+      const data = await teacherService.getClasses(user!.id);
+      setMyClasses(data);
+      if (data.length > 0) {
+        setSelectedClass(data[0].id);
+      }
+    } catch (err) {
+      console.error('Erreur lors du chargement des classes:', err);
+      setError('Erreur lors du chargement des classes');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchStudents = async () => {
+    try {
+      setLoadingStudents(true);
+      const data = await teacherService.getStudentsByClass(user!.id, selectedClass);
+      setStudents(data);
+    } catch (err) {
+      console.error('Erreur lors du chargement des élèves:', err);
+    } finally {
+      setLoadingStudents(false);
+    }
+  };
+
+  if (loading) return <LoadingSpinner />;
+  if (error) return <div className="text-red-600">{error}</div>;
+  if (myClasses.length === 0) return <div className="text-gray-600">Aucune classe assignée</div>;
 
   const selectedClassData = myClasses.find(cls => cls.id === selectedClass);
 
@@ -103,7 +89,7 @@ const MyClasses: React.FC = () => {
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              {cls.name} - {cls.subject}
+              {cls.name} {cls.level ? `- ${cls.level}` : ''}
             </button>
           ))}
         </div>
@@ -156,33 +142,41 @@ const MyClasses: React.FC = () => {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Prochain cours</p>
-                  <p className="text-sm font-bold text-gray-900">{selectedClassData.nextLesson.date}</p>
-                  <p className="text-xs text-gray-500">{selectedClassData.nextLesson.time}</p>
+                  {selectedClassData.nextLesson ? (
+                    <>
+                      <p className="text-sm font-bold text-gray-900">{selectedClassData.nextLesson.day}</p>
+                      <p className="text-xs text-gray-500">{selectedClassData.nextLesson.time}</p>
+                    </>
+                  ) : (
+                    <p className="text-xs text-gray-500">Non planifié</p>
+                  )}
                 </div>
               </div>
             </div>
           </div>
 
           {/* Next Lesson Info */}
-          <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-lg border border-blue-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-blue-900">Prochain cours: {selectedClassData.name}</h3>
-                <p className="text-blue-700">{selectedClassData.nextLesson.topic}</p>
-                <p className="text-sm text-blue-600">
-                  {selectedClassData.nextLesson.date} à {selectedClassData.nextLesson.time}
-                </p>
-              </div>
-              <div className="flex space-x-2">
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                  Préparer le cours
-                </button>
-                <button className="px-4 py-2 bg-white text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50">
-                  Voir planning
-                </button>
+          {selectedClassData.nextLesson && (
+            <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-lg border border-blue-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-blue-900">Prochain cours: {selectedClassData.name}</h3>
+                  <p className="text-blue-700">{selectedClassData.nextLesson.topic}</p>
+                  <p className="text-sm text-blue-600">
+                    {selectedClassData.nextLesson.day} à {selectedClassData.nextLesson.time}
+                  </p>
+                </div>
+                <div className="flex space-x-2">
+                  <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    Préparer le cours
+                  </button>
+                  <button className="px-4 py-2 bg-white text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50">
+                    Voir planning
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Students List */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -230,24 +224,35 @@ const MyClasses: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {students.map((student) => (
-                    <tr key={student.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10">
-                            <img
-                              className="h-10 w-10 rounded-full object-cover"
-                              src={student.avatar}
-                              alt=""
-                            />
-                          </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">
-                              {student.name}
+                  {loadingStudents ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-8 text-center">
+                        <LoadingSpinner />
+                      </td>
+                    </tr>
+                  ) : students.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                        Aucun élève trouvé pour cette classe
+                      </td>
+                    </tr>
+                  ) : (
+                    students.map((student) => (
+                      <tr key={student.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-10 w-10">
+                              <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold">
+                                {student.firstName?.[0]}{student.lastName?.[0]}
+                              </div>
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">
+                                {student.name}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </td>
+                        </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`text-lg font-bold ${
                           student.lastGrade >= 16 ? 'text-green-600' :
@@ -290,9 +295,10 @@ const MyClasses: React.FC = () => {
                             Message
                           </button>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
