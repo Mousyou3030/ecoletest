@@ -1,14 +1,42 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Search, Send, Inbox, Send as Sent, MessageSquare, Users, Bell, Eye } from 'lucide-react';
 import { Message } from '../../types';
+import { useAuth } from '../../contexts/AuthContext';
+import { messageService } from '../../services/api';
+import LoadingSpinner from '../Common/LoadingSpinner';
 
 const TeacherMessages: React.FC = () => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'inbox' | 'sent' | 'compose'>('inbox');
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [messages, setMessages] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // Mock data
-  const [messages, setMessages] = useState<Message[]>([
+  useEffect(() => {
+    if (user?.id) {
+      fetchMessages();
+    }
+  }, [user?.id, activeTab]);
+
+  const fetchMessages = async () => {
+    try {
+      setLoading(true);
+      const data = await messageService.getAll({ userId: user!.id });
+      setMessages(data);
+    } catch (err) {
+      console.error('Erreur lors du chargement des messages:', err);
+      setError('Erreur lors du chargement des messages');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) return <LoadingSpinner />;
+  if (error) return <div className="text-red-600">{error}</div>;
+
+  const [messages_backup] = useState<Message[]>([
     {
       id: '1',
       senderId: '5',

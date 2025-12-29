@@ -1,10 +1,68 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BarChart3, Download, Calendar, Users, BookOpen, TrendingUp, PieChart, FileText } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { teacherService, gradeService, attendanceService } from '../../services/api';
+import LoadingSpinner from '../Common/LoadingSpinner';
 
 const TeacherReports: React.FC = () => {
+  const { user } = useAuth();
   const [selectedReport, setSelectedReport] = useState('grades');
-  const [selectedClass, setSelectedClass] = useState('1');
+  const [selectedClass, setSelectedClass] = useState('');
   const [selectedPeriod, setSelectedPeriod] = useState('month');
+  const [classes, setClasses] = useState<any[]>([]);
+  const [gradesData, setGradesData] = useState<any>(null);
+  const [attendanceData, setAttendanceData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchClasses();
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (selectedClass) {
+      fetchReportData();
+    }
+  }, [selectedClass, selectedReport]);
+
+  const fetchClasses = async () => {
+    try {
+      const data = await teacherService.getClasses(user!.id);
+      setClasses(data);
+      if (data.length > 0) {
+        setSelectedClass(data[0].id);
+      }
+      setLoading(false);
+    } catch (err) {
+      console.error('Erreur:', err);
+      setLoading(false);
+    }
+  };
+
+  const fetchReportData = async () => {
+    try {
+      if (selectedReport === 'grades') {
+        const grades = await gradeService.getAll({ classId: selectedClass });
+        setGradesData(processGradesData(grades));
+      } else if (selectedReport === 'attendance') {
+        const stats = await attendanceService.getStats({ classId: selectedClass });
+        setAttendanceData(stats);
+      }
+    } catch (err) {
+      console.error('Erreur:', err);
+    }
+  };
+
+  const processGradesData = (grades: any[]) => {
+    if (grades.length === 0) return { classAverage: 0, studentGrades: [], subjectBreakdown: [] };
+    const total = grades.reduce((acc, g) => acc + (g.grade || g.value), 0);
+    return {
+      classAverage: (total / grades.length).toFixed(1),
+      studentGrades: [],
+      subjectBreakdown: []
+    };
+  };
 
   const reportTypes = [
     { id: 'grades', name: 'Rapport de Notes', icon: BookOpen, description: 'Analyse des performances de vos élèves' },
@@ -13,14 +71,10 @@ const TeacherReports: React.FC = () => {
     { id: 'behavior', name: 'Rapport Comportement', icon: FileText, description: 'Évaluation du comportement en classe' }
   ];
 
-  const classes = [
-    { id: '1', name: '6ème A' },
-    { id: '2', name: '6ème B' },
-    { id: '3', name: '3ème A' }
-  ];
+  if (loading) return <LoadingSpinner />;
 
-  // Mock data for reports
-  const gradesData = {
+  // Mock data for reports (backup)
+  const gradesDataBackup = {
     classAverage: 14.2,
     studentGrades: [
       { name: 'Sophie Dupont', average: 16.5, trend: 'up' },
@@ -35,7 +89,7 @@ const TeacherReports: React.FC = () => {
     ]
   };
 
-  const attendanceData = {
+  const attendanceDataBackup = {
     classRate: 94.5,
     studentAttendance: [
       { name: 'Sophie Dupont', rate: 98, absences: 2 },

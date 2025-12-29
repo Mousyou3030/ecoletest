@@ -1,77 +1,69 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Search, Edit, Trash2, TrendingUp, Calendar, Filter, Download } from 'lucide-react';
 import { Grade } from '../../types';
+import { useAuth } from '../../contexts/AuthContext';
+import { teacherService, gradeService } from '../../services/api';
+import LoadingSpinner from '../Common/LoadingSpinner';
 
 const GradeManagement: React.FC = () => {
-  const [selectedClass, setSelectedClass] = useState('1');
+  const { user } = useAuth();
+  const [selectedCourse, setSelectedCourse] = useState('');
   const [selectedType, setSelectedType] = useState<'all' | 'exam' | 'homework' | 'participation' | 'project'>('all');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [courses, setCourses] = useState<any[]>([]);
+  const [grades, setGrades] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // Mock data
-  const classes = [
-    { id: '1', name: '6ème A' },
-    { id: '2', name: '6ème B' },
-    { id: '3', name: '3ème A' }
-  ];
-
-  const students = [
-    { id: '1', name: 'Sophie Dupont' },
-    { id: '2', name: 'Lucas Martin' },
-    { id: '3', name: 'Emma Bernard' },
-    { id: '4', name: 'Thomas Dubois' }
-  ];
-
-  const [grades, setGrades] = useState<Grade[]>([
-    {
-      id: '1',
-      studentId: '1',
-      courseId: '1',
-      teacherId: '2',
-      value: 16,
-      maxValue: 20,
-      type: 'exam',
-      date: new Date('2024-01-15'),
-      comments: 'Très bon travail'
-    },
-    {
-      id: '2',
-      studentId: '2',
-      courseId: '1',
-      teacherId: '2',
-      value: 12,
-      maxValue: 20,
-      type: 'homework',
-      date: new Date('2024-01-14'),
-      comments: 'Peut mieux faire'
-    },
-    {
-      id: '3',
-      studentId: '3',
-      courseId: '1',
-      teacherId: '2',
-      value: 18,
-      maxValue: 20,
-      type: 'exam',
-      date: new Date('2024-01-15'),
-      comments: 'Excellent'
-    },
-    {
-      id: '4',
-      studentId: '4',
-      courseId: '1',
-      teacherId: '2',
-      value: 14,
-      maxValue: 20,
-      type: 'participation',
-      date: new Date('2024-01-13'),
-      comments: 'Bonne participation'
+  useEffect(() => {
+    if (user?.id) {
+      fetchCourses();
+      fetchGrades();
     }
-  ]);
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchGrades();
+    }
+  }, [selectedCourse, selectedType]);
+
+  const fetchCourses = async () => {
+    try {
+      const data = await teacherService.getCourses(user!.id);
+      setCourses(data);
+      if (data.length > 0) {
+        setSelectedCourse(data[0].id);
+      }
+    } catch (err) {
+      console.error('Erreur lors du chargement des cours:', err);
+    }
+  };
+
+  const fetchGrades = async () => {
+    try {
+      setLoading(true);
+      const params: any = {};
+      if (selectedCourse && selectedCourse !== 'all') {
+        params.courseId = selectedCourse;
+      }
+      const data = await gradeService.getAll(params);
+      setGrades(data);
+    } catch (err) {
+      console.error('Erreur lors du chargement des notes:', err);
+      setError('Erreur lors du chargement des notes');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredGrades = grades.filter(grade => {
-    const matchesType = selectedType === 'all' || grade.type === selectedType;
+    const matchesType = selectedType === 'all' || grade.examType === selectedType || grade.type === selectedType;
     return matchesType;
   });
+
+  if (loading) return <LoadingSpinner />;
+  if (error) return <div className="text-red-600">{error}</div>;
 
   const getGradeColor = (value: number, maxValue: number) => {
     const percentage = (value / maxValue) * 100;
@@ -203,14 +195,15 @@ const GradeManagement: React.FC = () => {
       <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
         <div className="flex flex-col md:flex-row gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Classe</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Cours</label>
             <select
-              value={selectedClass}
-              onChange={(e) => setSelectedClass(e.target.value)}
+              value={selectedCourse}
+              onChange={(e) => setSelectedCourse(e.target.value)}
               className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              {classes.map(cls => (
-                <option key={cls.id} value={cls.id}>{cls.name}</option>
+              <option value="all">Tous les cours</option>
+              {courses.map(course => (
+                <option key={course.id} value={course.id}>{course.title}</option>
               ))}
             </select>
           </div>
@@ -276,7 +269,7 @@ const GradeManagement: React.FC = () => {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Taux de réussite</p>
               <p className="text-2xl font-bold text-gray-900">
-                {Math.round((filteredGrades.filter(g => (g.value / g.maxValue) >= 0.5).length / filteredGrades.length) * 100)}%
+                {filteredGrades.length > 0 ? Math.round((filteredGrades.filter(g => ((g.grade || g.value) / (g.maxGrade || g.maxValue)) >= 0.5).length / filteredGrades.length) * 100) : 0}%
               </p>
             </div>
           </div>
@@ -310,46 +303,54 @@ const GradeManagement: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredGrades.map((grade) => (
-                <tr key={grade.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">
-                      {students.find(s => s.id === grade.studentId)?.name || 'Élève inconnu'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`text-lg font-bold ${getGradeColor(grade.value, grade.maxValue)}`}>
-                      {grade.value}/{grade.maxValue}
-                    </span>
-                    <div className="text-xs text-gray-500">
-                      {Math.round((grade.value / grade.maxValue) * 100)}%
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getTypeBadgeColor(grade.type)}`}>
-                      {getTypeLabel(grade.type)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {grade.date.toLocaleDateString('fr-FR')}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-gray-900 max-w-xs truncate">
-                      {grade.comments || '-'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex space-x-2">
-                      <button className="text-blue-600 hover:text-blue-900">
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button className="text-red-600 hover:text-red-900">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
+              {filteredGrades.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                    Aucune note trouvée
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredGrades.map((grade) => (
+                  <tr key={grade.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        {grade.studentName || 'Élève inconnu'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`text-lg font-bold ${getGradeColor(grade.grade || grade.value, grade.maxGrade || grade.maxValue)}`}>
+                        {grade.grade || grade.value}/{grade.maxGrade || grade.maxValue}
+                      </span>
+                      <div className="text-xs text-gray-500">
+                        {Math.round(((grade.grade || grade.value) / (grade.maxGrade || grade.maxValue)) * 100)}%
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getTypeBadgeColor(grade.examType || grade.type)}`}>
+                        {getTypeLabel(grade.examType || grade.type)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {grade.date ? new Date(grade.date).toLocaleDateString('fr-FR') : grade.createdAt ? new Date(grade.createdAt).toLocaleDateString('fr-FR') : '-'}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-900 max-w-xs truncate">
+                        {grade.comments || '-'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
+                        <button className="text-blue-600 hover:text-blue-900">
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button className="text-red-600 hover:text-red-900">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
