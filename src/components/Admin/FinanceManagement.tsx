@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Search, Download, CreditCard, DollarSign, TrendingUp, Calendar, Filter, Eye } from 'lucide-react';
+import { paymentService } from '../../services/api';
+import LoadingSpinner from '../Common/LoadingSpinner';
 
 interface Payment {
   id: string;
@@ -8,8 +10,8 @@ interface Payment {
   amount: number;
   type: 'tuition' | 'canteen' | 'transport' | 'materials' | 'other';
   status: 'paid' | 'pending' | 'overdue';
-  dueDate: Date;
-  paidDate?: Date;
+  dueDate: Date | string;
+  paidDate?: Date | string;
   method?: 'cash' | 'card' | 'transfer' | 'check';
 }
 
@@ -18,50 +20,22 @@ const FinanceManagement: React.FC = () => {
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'paid' | 'pending' | 'overdue'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data
-  const [payments, setPayments] = useState<Payment[]>([
-    {
-      id: '1',
-      studentId: '1',
-      studentName: 'Sophie Dupont',
-      amount: 450,
-      type: 'tuition',
-      status: 'paid',
-      dueDate: new Date('2024-01-15'),
-      paidDate: new Date('2024-01-10'),
-      method: 'transfer'
-    },
-    {
-      id: '2',
-      studentId: '2',
-      studentName: 'Lucas Martin',
-      amount: 85,
-      type: 'canteen',
-      status: 'pending',
-      dueDate: new Date('2024-01-20'),
-    },
-    {
-      id: '3',
-      studentId: '3',
-      studentName: 'Emma Bernard',
-      amount: 450,
-      type: 'tuition',
-      status: 'overdue',
-      dueDate: new Date('2024-01-05'),
-    },
-    {
-      id: '4',
-      studentId: '4',
-      studentName: 'Thomas Dubois',
-      amount: 120,
-      type: 'materials',
-      status: 'paid',
-      dueDate: new Date('2024-01-12'),
-      paidDate: new Date('2024-01-12'),
-      method: 'card'
-    }
-  ]);
+  useEffect(() => {
+    const fetchPayments = async () => {
+      try {
+        const data = await paymentService.getAll();
+        setPayments(data.payments || data || []);
+      } catch (error) {
+        console.error('Erreur lors du chargement des paiements:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPayments();
+  }, []);
 
   const filteredPayments = payments.filter(payment => {
     const matchesSearch = payment.studentName.toLowerCase().includes(searchTerm.toLowerCase());
@@ -88,6 +62,8 @@ const FinanceManagement: React.FC = () => {
       default: return 'bg-gray-100 text-gray-800';
     }
   };
+
+  if (loading) return <LoadingSpinner />;
 
   const getStatusLabel = (status: string) => {
     switch (status) {

@@ -33,47 +33,22 @@ const TeacherMessages: React.FC = () => {
     }
   };
 
+  const [users, setUsers] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const usersData = await userService.getAll();
+        setUsers(usersData.users || usersData || []);
+      } catch (error) {
+        console.error('Erreur lors du chargement des utilisateurs:', error);
+      }
+    };
+    fetchUsers();
+  }, []);
+
   if (loading) return <LoadingSpinner />;
   if (error) return <div className="text-red-600">{error}</div>;
-
-  const [messages_backup] = useState<Message[]>([
-    {
-      id: '1',
-      senderId: '5',
-      receiverId: '2',
-      subject: 'Question sur les devoirs',
-      content: 'Bonjour M. Martin, j\'ai une question concernant les exercices de mathématiques de la page 45.',
-      timestamp: new Date('2024-01-15T10:30:00'),
-      isRead: false
-    },
-    {
-      id: '2',
-      senderId: '6',
-      receiverId: '2',
-      subject: 'Absence de mon enfant',
-      content: 'Bonjour, je vous informe que Sophie sera absente demain pour un rendez-vous médical.',
-      timestamp: new Date('2024-01-14T14:20:00'),
-      isRead: true
-    },
-    {
-      id: '3',
-      senderId: '1',
-      receiverId: '2',
-      subject: 'Réunion pédagogique',
-      content: 'Rappel: réunion pédagogique demain à 16h en salle des professeurs.',
-      timestamp: new Date('2024-01-13T09:15:00'),
-      isRead: true
-    }
-  ]);
-
-  const users = [
-    { id: '1', name: 'Administration', role: 'admin' },
-    { id: '2', name: 'Jean Martin', role: 'teacher' },
-    { id: '5', name: 'Sophie Dupont', role: 'student' },
-    { id: '6', name: 'Parent Dupont', role: 'parent' },
-    { id: '7', name: 'Lucas Martin', role: 'student' },
-    { id: '8', name: 'Parent Martin', role: 'parent' }
-  ];
 
   const [composeForm, setComposeForm] = useState({
     to: '',
@@ -86,7 +61,7 @@ const TeacherMessages: React.FC = () => {
     const sender = users.find(u => u.id === message.senderId);
     return message.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
            message.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           sender?.name.toLowerCase().includes(searchTerm.toLowerCase());
+           (sender?.firstName + ' ' + sender?.lastName).toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   const unreadCount = messages.filter(m => !m.isRead).length;
@@ -149,10 +124,10 @@ const TeacherMessages: React.FC = () => {
               required
             >
               <option value="">Sélectionner un destinataire</option>
-              {users.filter(u => u.id !== '2').map(user => (
-                <option key={user.id} value={user.id}>
-                  {user.name} ({user.role === 'admin' ? 'Administration' : 
-                              user.role === 'student' ? 'Élève' : 'Parent'})
+              {users.filter(u => u.id !== user?.id).map(u => (
+                <option key={u.id} value={u.id}>
+                  {u.firstName} {u.lastName} ({u.role === 'admin' ? 'Administration' :
+                              u.role === 'student' ? 'Élève' : u.role === 'teacher' ? 'Enseignant' : 'Parent'})
                 </option>
               ))}
             </select>
@@ -242,7 +217,7 @@ const TeacherMessages: React.FC = () => {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center space-x-2">
                     <p className={`text-sm font-medium ${!message.isRead ? 'text-gray-900' : 'text-gray-700'}`}>
-                      {sender?.name}
+                      {sender?.firstName} {sender?.lastName}
                     </p>
                     <span className={`text-xs px-2 py-1 rounded-full ${
                       sender?.role === 'admin' ? 'bg-red-100 text-red-700' :
@@ -299,7 +274,7 @@ const TeacherMessages: React.FC = () => {
             {selectedMessage.subject}
           </h2>
           <div className="flex items-center text-sm text-gray-600 space-x-4">
-            <span>De: {sender?.name}</span>
+            <span>De: {sender?.firstName} {sender?.lastName}</span>
             <span className={`px-2 py-1 rounded-full text-xs ${
               sender?.role === 'admin' ? 'bg-red-100 text-red-700' :
               sender?.role === 'student' ? 'bg-green-100 text-green-700' :

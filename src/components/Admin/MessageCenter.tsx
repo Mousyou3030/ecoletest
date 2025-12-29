@@ -1,51 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Search, Send, Inbox, Send as Sent, Archive, Star, MessageSquare, Users, Bell } from 'lucide-react';
 import { Message } from '../../types';
+import { messageService, userService } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
+import LoadingSpinner from '../Common/LoadingSpinner';
 
 const MessageCenter: React.FC = () => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'inbox' | 'sent' | 'compose'>('inbox');
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-
-  // Mock data
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      senderId: '2',
-      receiverId: '1',
-      subject: 'Réunion parents-professeurs',
-      content: 'Bonjour, je souhaiterais organiser une réunion pour discuter des progrès de Sophie.',
-      timestamp: new Date('2024-01-15T10:30:00'),
-      isRead: false
-    },
-    {
-      id: '2',
-      senderId: '3',
-      receiverId: '1',
-      subject: 'Absence prévue',
-      content: 'Je vous informe que je serai absent demain pour raisons médicales.',
-      timestamp: new Date('2024-01-14T14:20:00'),
-      isRead: true
-    },
-    {
-      id: '3',
-      senderId: '4',
-      receiverId: '1',
-      subject: 'Demande de matériel',
-      content: 'Pourriez-vous commander du matériel supplémentaire pour le laboratoire ?',
-      timestamp: new Date('2024-01-13T09:15:00'),
-      isRead: true
-    }
-  ]);
-
-  const users = [
-    { id: '1', name: 'Admin', role: 'admin' },
-    { id: '2', name: 'Jean Martin', role: 'teacher' },
-    { id: '3', name: 'Marie Dubois', role: 'teacher' },
-    { id: '4', name: 'Pierre Morel', role: 'teacher' },
-    { id: '5', name: 'Sophie Dupont', role: 'student' },
-    { id: '6', name: 'Parent Dupont', role: 'parent' }
-  ];
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [composeForm, setComposeForm] = useState({
     to: '',
@@ -53,36 +20,64 @@ const MessageCenter: React.FC = () => {
     content: ''
   });
 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [messagesData, usersData] = await Promise.all([
+          messageService.getAll(),
+          userService.getAll()
+        ]);
+        setMessages(messagesData.messages || messagesData || []);
+        setUsers(usersData.users || usersData || []);
+      } catch (error) {
+        console.error('Erreur lors du chargement des données:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
   const filteredMessages = messages.filter(message => {
     const sender = users.find(u => u.id === message.senderId);
     return message.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
            message.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           sender?.name.toLowerCase().includes(searchTerm.toLowerCase());
+           (sender?.firstName + ' ' + sender?.lastName).toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   const unreadCount = messages.filter(m => !m.isRead).length;
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      senderId: '1', // Current admin user
-      receiverId: composeForm.to,
-      subject: composeForm.subject,
-      content: composeForm.content,
-      timestamp: new Date(),
-      isRead: false
-    };
-    setMessages(prev => [newMessage, ...prev]);
-    setComposeForm({ to: '', subject: '', content: '' });
-    setActiveTab('sent');
+    if (!user?.id) return;
+
+    try {
+      const newMessage = await messageService.create({
+        senderId: user.id,
+        receiverId: composeForm.to,
+        subject: composeForm.subject,
+        content: composeForm.content
+      });
+      setMessages(prev => [newMessage, ...prev]);
+      setComposeForm({ to: '', subject: '', content: '' });
+      setActiveTab('sent');
+    } catch (error) {
+      console.error('Erreur lors de l\'envoi du message:', error);
+    }
   };
 
-  const markAsRead = (messageId: string) => {
-    setMessages(prev => prev.map(msg => 
-      msg.id === messageId ? { ...msg, isRead: true } : msg
-    ));
+  const markAsRead = async (messageId: string) => {
+    try {
+      await messageService.markAsRead(messageId);
+      setMessages(prev => prev.map(msg =>
+        msg.id === messageId ? { ...msg, isRead: true } : msg
+      ));
+    } catch (error) {
+      console.error('Erreur lors du marquage du message:', error);
+    }
   };
+
+  if (loading) return <LoadingSpinner />;
 
   const ComposeMessage = () => (
     <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
@@ -97,10 +92,10 @@ const MessageCenter: React.FC = () => {
             required
           >
             <option value="">Sélectionner un destinataire</option>
-            {users.filter(u => u.id !== '1').map(user => (
-              <option key={user.id} value={user.id}>
-                {user.name} ({user.role === 'teacher' ? 'Enseignant' : 
-                            user.role === 'student' ? 'Élève' : 'Parent'})
+            {users.filter(u => u.id !== user?.id).map(u => (
+              <option key={u.id} value={u.id}>
+                {u.firstName} {u.lastName} ({u.role === 'teacher' ? 'Enseignant' :
+                            u.role === 'student' ? 'Élève' : 'Parent'})
               </option>
             ))}
           </select>
@@ -177,7 +172,7 @@ const MessageCenter: React.FC = () => {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center space-x-2">
                     <p className={`text-sm font-medium ${!message.isRead ? 'text-gray-900' : 'text-gray-700'}`}>
-                      {sender?.name}
+                      {sender?.firstName} {sender?.lastName}
                     </p>
                     {!message.isRead && (
                       <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
@@ -232,7 +227,7 @@ const MessageCenter: React.FC = () => {
             {selectedMessage.subject}
           </h2>
           <div className="flex items-center text-sm text-gray-600">
-            <span>De: {sender?.name}</span>
+            <span>De: {sender?.firstName} {sender?.lastName}</span>
             <span className="mx-2">•</span>
             <span>{selectedMessage.timestamp.toLocaleString('fr-FR')}</span>
           </div>

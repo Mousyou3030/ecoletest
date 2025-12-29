@@ -57,36 +57,48 @@ const AdminDashboard: React.FC = () => {
     return `${Math.floor(diff / 86400)} j`;
   };
 
+  const getChangeType = (change: number): 'positive' | 'negative' | 'neutral' => {
+    if (change > 0) return 'positive';
+    if (change < 0) return 'negative';
+    return 'neutral';
+  };
+
+  const formatChange = (change: number): string => {
+    if (change > 0) return `+${change}%`;
+    if (change < 0) return `${change}%`;
+    return '0%';
+  };
+
   const stats = [
     {
       title: 'Total Élèves',
       value: data.totalStudents.toLocaleString(),
-      change: '+12%',
-      changeType: 'positive' as const,
+      change: formatChange((data as any).studentChange || 0),
+      changeType: getChangeType((data as any).studentChange || 0),
       icon: Users,
       color: 'blue'
     },
     {
       title: 'Enseignants',
       value: data.totalTeachers.toString(),
-      change: '+3%',
-      changeType: 'positive' as const,
+      change: formatChange((data as any).teacherChange || 0),
+      changeType: getChangeType((data as any).teacherChange || 0),
       icon: BookOpen,
       color: 'green'
     },
     {
       title: 'Classes Actives',
       value: data.totalClasses.toString(),
-      change: '0%',
-      changeType: 'neutral' as const,
+      change: formatChange((data as any).classChange || 0),
+      changeType: getChangeType((data as any).classChange || 0),
       icon: Calendar,
       color: 'purple'
     },
     {
       title: 'Revenus Mensuel',
       value: `€${data.monthlyRevenue.toLocaleString()}`,
-      change: '+8%',
-      changeType: 'positive' as const,
+      change: formatChange((data as any).revenueChange || 0),
+      changeType: getChangeType((data as any).revenueChange || 0),
       icon: DollarSign,
       color: 'orange'
     }

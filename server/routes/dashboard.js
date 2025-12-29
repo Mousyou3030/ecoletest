@@ -10,12 +10,51 @@ router.get('/admin-stats', authenticateToken, async (req, res) => {
       'SELECT COUNT(*) as count FROM users WHERE role = "student"'
     );
 
+    const studentCountLastMonth = await pool.execute(
+      `SELECT COUNT(*) as count FROM users
+       WHERE role = "student"
+       AND createdAt < DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH)`
+    );
+
     const teacherCount = await pool.execute(
       'SELECT COUNT(*) as count FROM users WHERE role = "teacher"'
     );
 
+    const teacherCountLastMonth = await pool.execute(
+      `SELECT COUNT(*) as count FROM users
+       WHERE role = "teacher"
+       AND createdAt < DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH)`
+    );
+
     const classCount = await pool.execute(
       'SELECT COUNT(*) as count FROM classes'
+    );
+
+    const monthlyRevenue = await pool.execute(
+      `SELECT COALESCE(SUM(amount), 0) as total FROM payments
+       WHERE status = 'paid'
+       AND MONTH(paidDate) = MONTH(CURRENT_DATE)
+       AND YEAR(paidDate) = YEAR(CURRENT_DATE)`
+    );
+
+    const lastMonthRevenue = await pool.execute(
+      `SELECT COALESCE(SUM(amount), 0) as total FROM payments
+       WHERE status = 'paid'
+       AND MONTH(paidDate) = MONTH(DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH))
+       AND YEAR(paidDate) = YEAR(DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH))`
+    );
+
+    const attendanceRate = await pool.execute(
+      `SELECT
+        COUNT(*) as total,
+        SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present
+       FROM attendances
+       WHERE date >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)`
+    );
+
+    const avgGrades = await pool.execute(
+      `SELECT AVG((value / maxValue) * 100) as avg FROM grades
+       WHERE createdAt >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)`
     );
 
     const recentGrades = await pool.execute(
@@ -44,6 +83,31 @@ router.get('/admin-stats', authenticateToken, async (req, res) => {
        LIMIT 1`
     );
 
+    const currentStudents = studentCount[0][0]?.count || 0;
+    const lastMonthStudents = studentCountLastMonth[0][0]?.count || 0;
+    const studentChange = lastMonthStudents > 0
+      ? Math.round(((currentStudents - lastMonthStudents) / lastMonthStudents) * 100)
+      : 0;
+
+    const currentTeachers = teacherCount[0][0]?.count || 0;
+    const lastMonthTeachers = teacherCountLastMonth[0][0]?.count || 0;
+    const teacherChange = lastMonthTeachers > 0
+      ? Math.round(((currentTeachers - lastMonthTeachers) / lastMonthTeachers) * 100)
+      : 0;
+
+    const currentRevenue = monthlyRevenue[0][0]?.total || 0;
+    const lastRevenue = lastMonthRevenue[0][0]?.total || 0;
+    const revenueChange = lastRevenue > 0
+      ? Math.round(((currentRevenue - lastRevenue) / lastRevenue) * 100)
+      : 0;
+
+    const attendanceStats = attendanceRate[0][0];
+    const attendancePercent = attendanceStats.total > 0
+      ? Math.round((attendanceStats.present / attendanceStats.total) * 100)
+      : 0;
+
+    const successRate = avgGrades[0][0]?.avg || 0;
+
     const recentActivity = [];
     recentGrades[0].forEach(item => recentActivity.push({ action: 'Note ajoutée', user: item.user, createdAt: item.createdAt, type: 'info' }));
     recentPayments[0].forEach(item => recentActivity.push({ action: 'Paiement reçu', user: item.user, createdAt: item.createdAt, type: 'success' }));
@@ -51,14 +115,18 @@ router.get('/admin-stats', authenticateToken, async (req, res) => {
     recentActivity.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     res.json({
-      totalStudents: studentCount[0][0]?.count || 0,
-      totalTeachers: teacherCount[0][0]?.count || 0,
+      totalStudents: currentStudents,
+      totalTeachers: currentTeachers,
       totalClasses: classCount[0][0]?.count || 0,
-      monthlyRevenue: 45230,
+      monthlyRevenue: currentRevenue,
+      studentChange: studentChange,
+      teacherChange: teacherChange,
+      classChange: 0,
+      revenueChange: revenueChange,
       performanceMetrics: {
-        successRate: 92.5,
-        attendanceRate: 88.3,
-        parentSatisfaction: 94.1
+        successRate: Math.round(successRate * 10) / 10,
+        attendanceRate: attendancePercent,
+        parentSatisfaction: 90
       },
       recentActivity: recentActivity.slice(0, 5)
     });
