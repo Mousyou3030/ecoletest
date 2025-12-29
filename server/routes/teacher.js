@@ -14,7 +14,7 @@ router.get('/classes/:teacherId', authenticateToken, async (req, res) => {
         c.name,
         c.level,
         COUNT(DISTINCT a.studentId) as studentCount,
-        AVG(g.grade) as averageGrade,
+        AVG(g.value) as averageGrade,
         (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0 / COUNT(a.id)) as attendanceRate
        FROM classes c
        LEFT JOIN courses co ON c.id = co.classId
@@ -68,7 +68,7 @@ router.get('/classes/:teacherId/:classId/students', authenticateToken, async (re
         CONCAT(u.firstName, ' ', u.lastName) as name,
         u.firstName,
         u.lastName,
-        (SELECT g.grade
+        (SELECT g.value
          FROM grades g
          JOIN courses co ON g.courseId = co.id
          WHERE g.studentId = u.id AND co.classId = ?
@@ -188,9 +188,9 @@ router.get('/grades/:teacherId', authenticateToken, async (req, res) => {
     let query = `
       SELECT
         g.id,
-        g.grade,
-        g.maxGrade,
-        g.examType,
+        g.value as grade,
+        g.maxValue as maxGrade,
+        g.type as examType,
         g.comments,
         g.createdAt,
         CONCAT(u.firstName, ' ', u.lastName) as studentName,

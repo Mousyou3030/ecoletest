@@ -109,8 +109,8 @@ router.get('/student/:studentId', authenticateToken, async (req, res) => {
     const recentGrades = await pool.execute(
       `SELECT
         co.title as subject,
-        g.grade,
-        g.maxGrade as max,
+        g.value as grade,
+        g.maxValue as max,
         g.createdAt as date
        FROM grades g
        JOIN courses co ON g.courseId = co.id
