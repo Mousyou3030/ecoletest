@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, Download, CreditCard, DollarSign, TrendingUp, Calendar, Filter, Eye } from 'lucide-react';
-import { paymentService } from '../../services/api';
+import { paymentService, userService } from '../../services/api';
 import LoadingSpinner from '../Common/LoadingSpinner';
 
 interface Payment {
@@ -21,21 +21,29 @@ const FinanceManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchPayments = async () => {
-      try {
-        const data = await paymentService.getAll();
-        setPayments(data.payments || data || []);
-      } catch (error) {
-        console.error('Erreur lors du chargement des paiements:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchPayments();
+    loadData();
   }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [paymentsData, studentsData] = await Promise.all([
+        paymentService.getAll(),
+        userService.getAll({ role: 'student' })
+      ]);
+
+      setPayments(paymentsData.payments || paymentsData || []);
+      setStudents(studentsData.users || studentsData || []);
+    } catch (error) {
+      console.error('Erreur lors du chargement des données:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredPayments = payments.filter(payment => {
     const matchesSearch = payment.studentName.toLowerCase().includes(searchTerm.toLowerCase());
@@ -85,18 +93,55 @@ const FinanceManagement: React.FC = () => {
 
   const stats = calculateStats();
 
+  const handleAddPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const formData = new FormData(e.target as HTMLFormElement);
+
+    const paymentData = {
+      studentId: formData.get('studentId') as string,
+      type: formData.get('type') as string,
+      amount: parseFloat(formData.get('amount') as string),
+      dueDate: formData.get('dueDate') as string,
+      status: formData.get('status') as string,
+      description: formData.get('description') as string,
+      method: formData.get('status') === 'paid' ? (formData.get('method') as string) : undefined,
+      paidDate: formData.get('status') === 'paid' ? new Date().toISOString() : undefined
+    };
+
+    try {
+      await paymentService.create(paymentData);
+      setShowAddModal(false);
+      await loadData();
+      alert('Paiement créé avec succès !');
+    } catch (error) {
+      console.error('Erreur lors de la création du paiement:', error);
+      alert('Erreur lors de la création du paiement');
+    }
+  };
+
   const AddPaymentModal = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
         <h3 className="text-lg font-semibold mb-4">Ajouter un paiement</h3>
-        <form className="space-y-4">
+        <form onSubmit={handleAddPayment} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Élève</label>
-            <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="Nom de l'élève" />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Élève *</label>
+            <select
+              name="studentId"
+              required
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+            >
+              <option value="">Sélectionner un élève</option>
+              {students.map(student => (
+                <option key={student.id} value={student.id}>
+                  {student.firstName} {student.lastName}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Type de paiement</label>
-            <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Type de paiement *</label>
+            <select name="type" required className="w-full border border-gray-300 rounded-lg px-3 py-2">
               <option value="tuition">Scolarité</option>
               <option value="canteen">Cantine</option>
               <option value="transport">Transport</option>
@@ -105,20 +150,42 @@ const FinanceManagement: React.FC = () => {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Montant (€)</label>
-            <input type="number" step="0.01" className="w-full border border-gray-300 rounded-lg px-3 py-2" placeholder="0.00" />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Montant (€) *</label>
+            <input
+              name="amount"
+              type="number"
+              step="0.01"
+              min="0"
+              required
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+              placeholder="0.00"
+            />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date d'échéance</label>
-            <input type="date" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Date d'échéance *</label>
+            <input
+              name="dueDate"
+              type="date"
+              required
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+            />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Statut</label>
-            <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Statut *</label>
+            <select name="status" required className="w-full border border-gray-300 rounded-lg px-3 py-2">
               <option value="pending">En attente</option>
               <option value="paid">Payé</option>
               <option value="overdue">En retard</option>
             </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <textarea
+              name="description"
+              rows={2}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2"
+              placeholder="Description du paiement..."
+            ></textarea>
           </div>
           <div className="flex justify-end space-x-3 pt-4">
             <button
@@ -131,6 +198,7 @@ const FinanceManagement: React.FC = () => {
             <button
               type="submit"
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              disabled={students.length === 0}
             >
               Ajouter
             </button>
