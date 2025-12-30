@@ -83,9 +83,9 @@ const FinanceManagement: React.FC = () => {
   };
 
   const calculateStats = () => {
-    const totalRevenue = payments.filter(p => p.status === 'paid').reduce((acc, p) => acc + p.amount, 0);
-    const pendingAmount = payments.filter(p => p.status === 'pending').reduce((acc, p) => acc + p.amount, 0);
-    const overdueAmount = payments.filter(p => p.status === 'overdue').reduce((acc, p) => acc + p.amount, 0);
+    const totalRevenue = payments.filter(p => p.status === 'paid').reduce((acc, p) => acc + Number(p.amount), 0);
+    const pendingAmount = payments.filter(p => p.status === 'pending').reduce((acc, p) => acc + Number(p.amount), 0);
+    const overdueAmount = payments.filter(p => p.status === 'overdue').reduce((acc, p) => acc + Number(p.amount), 0);
     const totalTransactions = payments.length;
 
     return { totalRevenue, pendingAmount, overdueAmount, totalTransactions };
@@ -375,7 +375,7 @@ const FinanceManagement: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-bold text-gray-900">
-                        €{payment.amount.toFixed(2)}
+                        €{Number(payment.amount).toFixed(2)}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
