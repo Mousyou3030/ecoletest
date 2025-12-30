@@ -16,7 +16,7 @@ router.get('/', authenticateToken, async (req, res) => {
              COUNT(cs.studentId) as studentCount
       FROM classes c
       LEFT JOIN users u ON c.teacherId = u.id
-      LEFT JOIN class_students cs ON c.id = cs.classId AND cs.isActive = TRUE
+      LEFT JOIN student_classes cs ON c.id = cs.classId AND cs.isActive = TRUE
       WHERE 1=1
     `;
     let params = [];
