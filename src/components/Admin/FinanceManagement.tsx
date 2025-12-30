@@ -306,7 +306,7 @@ const FinanceManagement: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {payment.dueDate.toLocaleDateString('fr-FR')}
+                    {new Date(payment.dueDate).toLocaleDateString('fr-FR')}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {payment.method ? (

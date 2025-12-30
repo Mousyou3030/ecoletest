@@ -11,12 +11,12 @@ router.get('/', authenticateToken, async (req, res) => {
     const { status, type, studentId } = req.query;
     
     let query = `
-      SELECT p.*, 
+      SELECT p.*,
              CONCAT(u.firstName, ' ', u.lastName) as studentName,
              c.name as className
       FROM payments p
       LEFT JOIN users u ON p.studentId = u.id
-      LEFT JOIN class_students cs ON u.id = cs.studentId
+      LEFT JOIN student_classes cs ON u.id = cs.studentId
       LEFT JOIN classes c ON cs.classId = c.id
       WHERE 1=1
     `;
