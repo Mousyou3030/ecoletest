@@ -60,12 +60,25 @@ router.post('/', authenticateToken, requireRole(['admin']), [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { studentId, amount, type, dueDate, description, status } = req.body;
+    const { studentId, amount, type, dueDate, description, status, method, paidDate } = req.body;
+
+    const finalPaidDate = status === 'paid'
+      ? (paidDate || new Date().toISOString().slice(0, 19).replace('T', ' '))
+      : null;
 
     const [result] = await pool.execute(
-      `INSERT INTO payments (id, studentId, amount, type, dueDate, description, status) 
-       VALUES (UUID(), ?, ?, ?, ?, ?, ?)`,
-      [studentId, amount, type, dueDate, description || null, status || 'pending']
+      `INSERT INTO payments (id, studentId, amount, type, dueDate, description, status, method, paidDate)
+       VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        studentId,
+        amount,
+        type,
+        dueDate,
+        description || null,
+        status || 'pending',
+        method || null,
+        finalPaidDate
+      ]
     );
 
     res.status(201).json({
@@ -90,6 +103,11 @@ router.put('/:id', authenticateToken, requireRole(['admin']), async (req, res) =
     if (status) {
       updateFields.push('status = ?');
       params.push(status);
+
+      if (status === 'paid' && !paidDate) {
+        updateFields.push('paidDate = ?');
+        params.push(new Date().toISOString().slice(0, 19).replace('T', ' '));
+      }
     }
     if (paidDate) {
       updateFields.push('paidDate = ?');
