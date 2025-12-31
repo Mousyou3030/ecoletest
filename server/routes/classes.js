@@ -52,7 +52,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
              COUNT(cs.studentId) as studentCount
       FROM classes c
       LEFT JOIN users u ON c.teacherId = u.id
-      LEFT JOIN class_students cs ON c.id = cs.classId AND cs.isActive = TRUE
+      LEFT JOIN student_classes cs ON c.id = cs.classId AND cs.isActive = TRUE
       WHERE c.id = ?
       GROUP BY c.id
     `, [id]);
@@ -65,7 +65,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     const [students] = await pool.execute(`
       SELECT u.id, u.firstName, u.lastName, u.email, cs.enrollmentDate
       FROM users u
-      JOIN class_students cs ON u.id = cs.studentId
+      JOIN student_classes cs ON u.id = cs.studentId
       WHERE cs.classId = ? AND cs.isActive = TRUE AND u.isActive = TRUE
       ORDER BY u.lastName, u.firstName
     `, [id]);
