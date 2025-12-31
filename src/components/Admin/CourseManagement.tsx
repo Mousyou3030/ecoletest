@@ -384,14 +384,15 @@ const CourseManagement: React.FC = () => {
               </div>
               
               <div className="flex space-x-2 ml-4">
-                <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
+                <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" title="Modifier">
                   <Edit className="h-4 w-4" />
                 </button>
-                <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg">
-                  <Trash2 
-                    className="h-4 w-4" 
-                    onClick={() => handleDeleteCourse(course.id)}
-                  />
+                <button
+                  onClick={() => handleDeleteCourse(course.id)}
+                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                  title="Supprimer"
+                >
+                  <Trash2 className="h-4 w-4" />
                 </button>
               </div>
             </div>

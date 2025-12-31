@@ -229,11 +229,12 @@ const ClassManagement: React.FC = () => {
                 <button className="text-blue-600 hover:text-blue-800">
                   <Edit className="h-4 w-4" />
                 </button>
-                <button className="text-red-600 hover:text-red-800">
-                  <Trash2 
-                    className="h-4 w-4" 
-                    onClick={() => handleDeleteClass(cls.id)}
-                  />
+                <button
+                  onClick={() => handleDeleteClass(cls.id)}
+                  className="text-red-600 hover:text-red-800"
+                  title="Supprimer"
+                >
+                  <Trash2 className="h-4 w-4" />
                 </button>
               </div>
             </div>
