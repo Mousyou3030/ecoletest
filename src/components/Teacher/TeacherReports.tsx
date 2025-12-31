@@ -106,31 +106,34 @@ const TeacherReports: React.FC = () => {
     ]
   };
 
-  const GradesReport = () => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Class Average */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Moyenne de Classe</h3>
-          <div className="text-center">
-            <div className="text-4xl font-bold text-blue-600 mb-2">
-              {gradesData.classAverage}/20
-            </div>
-            <p className="text-gray-600">Moyenne générale</p>
-            <div className="mt-4 w-full bg-gray-200 rounded-full h-3">
-              <div 
-                className="bg-blue-500 h-3 rounded-full"
-                style={{ width: `${(gradesData.classAverage / 20) * 100}%` }}
-              ></div>
+  const GradesReport = () => {
+    const data = gradesData || gradesDataBackup;
+
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Class Average */}
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Moyenne de Classe</h3>
+            <div className="text-center">
+              <div className="text-4xl font-bold text-blue-600 mb-2">
+                {data.classAverage}/20
+              </div>
+              <p className="text-gray-600">Moyenne générale</p>
+              <div className="mt-4 w-full bg-gray-200 rounded-full h-3">
+                <div
+                  className="bg-blue-500 h-3 rounded-full"
+                  style={{ width: `${(data.classAverage / 20) * 100}%` }}
+                ></div>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Subject Breakdown */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Moyennes par Chapitre</h3>
-          <div className="space-y-4">
-            {gradesData.subjectBreakdown.map((subject, index) => (
+          {/* Subject Breakdown */}
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Moyennes par Chapitre</h3>
+            <div className="space-y-4">
+              {data.subjectBreakdown.map((subject, index) => (
               <div key={index} className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-700">{subject.subject}</span>
                 <div className="flex items-center space-x-2">
@@ -152,29 +155,29 @@ const TeacherReports: React.FC = () => {
         </div>
       </div>
 
-      {/* Student Performance */}
-      <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Performance par Élève</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Élève
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Moyenne
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Tendance
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Évaluation
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {gradesData.studentGrades.map((student, index) => (
+        {/* Student Performance */}
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Performance par Élève</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Élève
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Moyenne
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Tendance
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Évaluation
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {data.studentGrades.map((student, index) => (
                 <tr key={index}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {student.name}
@@ -206,38 +209,42 @@ const TeacherReports: React.FC = () => {
                   </td>
                 </tr>
               ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-
-  const AttendanceReport = () => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Class Attendance Rate */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Taux de Présence Classe</h3>
-          <div className="text-center">
-            <div className="text-4xl font-bold text-green-600 mb-2">
-              {attendanceData.classRate}%
-            </div>
-            <p className="text-gray-600">Présence moyenne</p>
-            <div className="mt-4 w-full bg-gray-200 rounded-full h-3">
-              <div 
-                className="bg-green-500 h-3 rounded-full"
-                style={{ width: `${attendanceData.classRate}%` }}
-              ></div>
-            </div>
+              </tbody>
+            </table>
           </div>
         </div>
+      </div>
+    );
+  };
 
-        {/* Monthly Trend */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Évolution Mensuelle</h3>
-          <div className="space-y-3">
-            {attendanceData.monthlyTrend.map((month, index) => (
+  const AttendanceReport = () => {
+    const data = attendanceData || attendanceDataBackup;
+
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Class Attendance Rate */}
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Taux de Présence Classe</h3>
+            <div className="text-center">
+              <div className="text-4xl font-bold text-green-600 mb-2">
+                {data.classRate}%
+              </div>
+              <p className="text-gray-600">Présence moyenne</p>
+              <div className="mt-4 w-full bg-gray-200 rounded-full h-3">
+                <div
+                  className="bg-green-500 h-3 rounded-full"
+                  style={{ width: `${data.classRate}%` }}
+                ></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Monthly Trend */}
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Évolution Mensuelle</h3>
+            <div className="space-y-3">
+              {data.monthlyTrend.map((month, index) => (
               <div key={index} className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-700">{month.month}</span>
                 <div className="flex items-center space-x-2">
@@ -259,29 +266,29 @@ const TeacherReports: React.FC = () => {
         </div>
       </div>
 
-      {/* Student Attendance */}
-      <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Présence par Élève</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Élève
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Taux de présence
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Absences
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Statut
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {attendanceData.studentAttendance.map((student, index) => (
+        {/* Student Attendance */}
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Présence par Élève</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Élève
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Taux de présence
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Absences
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Statut
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {data.studentAttendance.map((student, index) => (
                 <tr key={index}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {student.name}
@@ -317,12 +324,13 @@ const TeacherReports: React.FC = () => {
                   </td>
                 </tr>
               ))}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderReportContent = () => {
     switch (selectedReport) {

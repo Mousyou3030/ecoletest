@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Search, Send, Inbox, Send as Sent, MessageSquare, Users, Bell, Eye } from 'lucide-react';
 import { Message } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
-import { messageService } from '../../services/api';
+import { messageService, userService } from '../../services/api';
 import LoadingSpinner from '../Common/LoadingSpinner';
 
 const TeacherMessages: React.FC = () => {
