@@ -66,12 +66,12 @@ router.post('/', authenticateToken, requireRole(['admin', 'teacher']), [
       });
     }
 
-    const { title, description, subject, teacherId, classId } = req.body;
+    const { title, description, subject, teacherId, classId, startDate, endDate } = req.body;
 
     const [result] = await pool.execute(
-      `INSERT INTO courses (title, description, subject, teacherId, classId)
-       VALUES (?, ?, ?, ?, ?)`,
-      [title, description || null, subject, teacherId || null, classId || null]
+      `INSERT INTO courses (title, description, subject, teacherId, classId, startDate, endDate)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [title, description || null, subject, teacherId || null, classId || null, startDate || null, endDate || null]
     );
 
     res.status(201).json({
@@ -88,7 +88,7 @@ router.post('/', authenticateToken, requireRole(['admin', 'teacher']), [
 router.put('/:id', authenticateToken, requireRole(['admin', 'teacher']), async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, subject, teacherId, classId } = req.body;
+    const { title, description, subject, teacherId, classId, startDate, endDate } = req.body;
 
     let updateFields = [];
     let params = [];
@@ -112,6 +112,14 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'teacher']), async (
     if (classId) {
       updateFields.push('classId = ?');
       params.push(classId);
+    }
+    if (startDate) {
+      updateFields.push('startDate = ?');
+      params.push(startDate);
+    }
+    if (endDate) {
+      updateFields.push('endDate = ?');
+      params.push(endDate);
     }
 
     if (updateFields.length === 0) {
