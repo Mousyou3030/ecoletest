@@ -284,12 +284,16 @@ router.delete('/:id', authenticateToken, requireRole(['admin']), async (req, res
     }
 
     // Désactiver l'utilisateur
-    await pool.execute(
+    const [result] = await pool.execute(
       'UPDATE users SET isActive = 0 WHERE id = ?',
       [id]
     );
 
-    res.json({ message: 'Utilisateur désactivé avec succès' });
+    if (result.affectedRows === 0) {
+      return res.status(500).json({ error: 'Erreur lors de la suppression de l\'utilisateur' });
+    }
+
+    res.json({ message: 'Utilisateur supprimé avec succès' });
   } catch (error) {
     console.error('Erreur lors de la suppression de l\'utilisateur:', error);
     res.status(500).json({ error: 'Erreur serveur' });
