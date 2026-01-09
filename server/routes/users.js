@@ -284,7 +284,7 @@ router.delete('/:id', authenticateToken, requireRole(['admin']), async (req, res
     }
 
     // Désactiver l'utilisateur
-    const [result] = await pool.execute(
+    const [, result] = await pool.execute(
       'UPDATE users SET isActive = 0 WHERE id = ?',
       [id]
     );
