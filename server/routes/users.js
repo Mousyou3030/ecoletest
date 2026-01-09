@@ -283,9 +283,9 @@ router.delete('/:id', authenticateToken, requireRole(['admin']), async (req, res
       return res.status(404).json({ error: 'Utilisateur non trouvé' });
     }
 
-    // Désactiver l'utilisateur
+    // Supprimer l'utilisateur
     const [result] = await pool.execute(
-      'UPDATE users SET isActive = 0 WHERE id = ?',
+      'DELETE FROM users WHERE id = ?',
       [id]
     );
 
