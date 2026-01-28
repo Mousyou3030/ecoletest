@@ -168,7 +168,7 @@ router.get('/student/:studentId', authenticateToken, async (req, res) => {
          WHEN 7 THEN 'Samedi'
        END
        AND s.startTime > CURRENT_TIME
-       AND s.classId IN (SELECT classId FROM class_students WHERE studentId = ?)
+       AND s.classId IN (SELECT DISTINCT classId FROM attendances WHERE studentId = ?)
        ORDER BY s.startTime
        LIMIT 3`,
       [studentId]
