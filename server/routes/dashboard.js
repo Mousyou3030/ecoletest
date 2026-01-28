@@ -408,7 +408,8 @@ router.get('/parent/:parentId', authenticateToken, async (req, res) => {
       `SELECT DISTINCT
         DATE_FORMAT(s.startTime, '%d/%m') as date,
         s.subject as event,
-        u.firstName as childName
+        u.firstName as childName,
+        s.startTime
        FROM schedules s
        JOIN classes c ON s.classId = c.id
        JOIN attendances a ON a.classId = c.id
