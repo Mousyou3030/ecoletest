@@ -19,6 +19,7 @@ import SettingsManagement from './components/Admin/SettingsManagement';
 import GradeManagement from './components/Admin/GradeManagement';
 import QuickActions from './components/Admin/QuickActions';
 import SystemOverview from './components/Admin/SystemOverview';
+import ParentChildManagement from './components/Admin/ParentChildManagement';
 import MyClasses from './components/Teacher/MyClasses';
 import TeacherGradeManagement from './components/Teacher/GradeManagement';
 import MyCourses from './components/Teacher/MyCourses';
@@ -26,6 +27,12 @@ import MySchedule from './components/Teacher/MySchedule';
 import TeacherAttendance from './components/Teacher/TeacherAttendance';
 import TeacherMessages from './components/Teacher/TeacherMessages';
 import TeacherReports from './components/Teacher/TeacherReports';
+import StudentCourses from './components/Student/MyCourses';
+import StudentSchedule from './components/Student/MySchedule';
+import StudentGrades from './components/Student/MyGrades';
+import StudentAttendance from './components/Student/MyAttendance';
+import StudentMessages from './components/Student/MyMessages';
+import StudentNotifications from './components/Student/MyNotifications';
 import LoadingSpinner from './components/Common/LoadingSpinner';
 
 const MainApp: React.FC = () => {
@@ -86,6 +93,8 @@ const MainApp: React.FC = () => {
           return <QuickActions />;
         case 'system':
           return <SystemOverview />;
+        case 'parent-children':
+          return <ParentChildManagement />;
       }
     }
 
@@ -105,6 +114,23 @@ const MainApp: React.FC = () => {
           return <TeacherReports />;
         case 'grades':
           return <TeacherGradeManagement />;
+      }
+    }
+
+    if (user.role === 'student') {
+      switch (activeSection) {
+        case 'courses':
+          return <StudentCourses />;
+        case 'schedule':
+          return <StudentSchedule />;
+        case 'grades':
+          return <StudentGrades />;
+        case 'attendance':
+          return <StudentAttendance />;
+        case 'messages':
+          return <StudentMessages />;
+        case 'notifications':
+          return <StudentNotifications />;
       }
     }
 

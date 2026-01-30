@@ -39,6 +39,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole, activeSection, onSectionCha
           { id: 'schedule', label: 'Emplois du temps', icon: Calendar },
           { id: 'grades', label: 'Notes', icon: ClipboardList },
           { id: 'attendance', label: 'Présences', icon: FileText },
+          { id: 'parent-children', label: 'Parents-Enfants', icon: Users },
           { id: 'messages', label: 'Messages', icon: MessageSquare },
           { id: 'finances', label: 'Finances', icon: CreditCard },
           { id: 'reports', label: 'Rapports', icon: BarChart3 },
