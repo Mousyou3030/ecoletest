@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS classes (
 );
 
 -- Table des étudiants dans les classes
-CREATE TABLE IF NOT EXISTS class_students (
+CREATE TABLE IF NOT EXISTS student_classes (
     id INT AUTO_INCREMENT PRIMARY KEY,
     classId INT NOT NULL,
     studentId INT NOT NULL,
@@ -201,7 +201,7 @@ INSERT IGNORE INTO classes (id, name, level, academicYear, teacherId) VALUES
 (1, 'CM1-A', 'CM1', '2024-2025', 2);
 
 -- Lier l'étudiant à la classe
-INSERT IGNORE INTO class_students (classId, studentId, isActive) VALUES
+INSERT IGNORE INTO student_classes (classId, studentId, isActive) VALUES
 (1, 3, TRUE);
 
 -- Créer un cours

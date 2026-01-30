@@ -212,7 +212,7 @@ router.post('/:id/students', authenticateToken, requireRole(['admin']), [
 
     // Vérifier que l'élève n'est pas déjà dans la classe
     const [existing] = await pool.execute(
-      'SELECT id FROM class_students WHERE studentId = ? AND classId = ? AND isActive = TRUE',
+      'SELECT id FROM student_classes WHERE studentId = ? AND classId = ? AND isActive = TRUE',
       [studentId, id]
     );
 
@@ -221,7 +221,7 @@ router.post('/:id/students', authenticateToken, requireRole(['admin']), [
     }
 
     await pool.execute(
-      'INSERT INTO class_students (studentId, classId) VALUES (?, ?)',
+      'INSERT INTO student_classes (studentId, classId) VALUES (?, ?)',
       [studentId, id]
     );
 
@@ -238,7 +238,7 @@ router.delete('/:id/students/:studentId', authenticateToken, requireRole(['admin
     const { id, studentId } = req.params;
 
     await pool.execute(
-      'UPDATE class_students SET isActive = FALSE WHERE studentId = ? AND classId = ?',
+      'UPDATE student_classes SET isActive = FALSE WHERE studentId = ? AND classId = ?',
       [studentId, id]
     );
 
