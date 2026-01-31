@@ -235,12 +235,12 @@ export const gradeService = {
 export const attendanceService = {
   getAll: async (params?: any) => {
     const response = await api.get('/attendances', { params });
-    return response.data;
+    return response.data.data || [];
   },
 
   getStats: async (params?: any) => {
     const response = await api.get('/attendances/stats', { params });
-    return response.data;
+    return response.data.data || {};
   },
 
   create: async (attendanceData: any) => {

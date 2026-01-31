@@ -29,10 +29,11 @@ const MyAttendance: React.FC = () => {
   const fetchAttendances = async () => {
     try {
       const response = await attendanceService.getAll({ studentId: user?.id, month: selectedMonth });
-      setAttendances(response);
+      setAttendances(Array.isArray(response) ? response : []);
     } catch (err) {
       console.error('Erreur lors du chargement des présences:', err);
       setError('Erreur lors du chargement des présences');
+      setAttendances([]);
     } finally {
       setLoading(false);
     }
@@ -83,6 +84,10 @@ const MyAttendance: React.FC = () => {
   };
 
   const calculateStats = () => {
+    if (!Array.isArray(attendances)) {
+      return { total: 0, present: 0, absent: 0, late: 0, percentage: 0 };
+    }
+
     const total = attendances.length;
     const present = attendances.filter(a => a.status === 'present').length;
     const absent = attendances.filter(a => a.status === 'absent').length;
@@ -157,7 +162,7 @@ const MyAttendance: React.FC = () => {
           />
         </div>
 
-        {attendances.length === 0 ? (
+        {!Array.isArray(attendances) || attendances.length === 0 ? (
           <p className="text-gray-500 text-center py-8">Aucune donnée de présence pour cette période</p>
         ) : (
           <div className="overflow-x-auto">
