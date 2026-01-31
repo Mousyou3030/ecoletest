@@ -1,37 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Save, Settings, Bell, Shield, Database, Mail, Globe, Users, School } from 'lucide-react';
+import { settingsService } from '../../services/api';
+import LoadingSpinner from '../Common/LoadingSpinner';
 
 const SettingsManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState('general');
   const [settings, setSettings] = useState({
     general: {
-      schoolName: 'École Primaire Saint-Martin',
-      address: '123 Rue de l\'École, 75001 Paris',
-      phone: '+33 1 23 45 67 89',
-      email: 'contact@ecole-saint-martin.fr',
-      website: 'www.ecole-saint-martin.fr',
-      academicYear: '2023-2024',
-      timezone: 'Europe/Paris',
-      language: 'fr'
+      schoolName: '',
+      address: '',
+      phone: '',
+      email: '',
+      website: '',
+      academicYear: '',
+      timezone: '',
+      language: ''
     },
     notifications: {
-      emailNotifications: true,
+      emailNotifications: false,
       smsNotifications: false,
-      pushNotifications: true,
-      parentNotifications: true,
-      teacherNotifications: true,
-      adminNotifications: true,
-      gradeNotifications: true,
-      attendanceNotifications: true,
-      paymentNotifications: true
+      pushNotifications: false,
+      parentNotifications: false,
+      teacherNotifications: false,
+      adminNotifications: false,
+      gradeNotifications: false,
+      attendanceNotifications: false,
+      paymentNotifications: false
     },
     security: {
       twoFactorAuth: false,
       passwordExpiry: 90,
       sessionTimeout: 30,
       loginAttempts: 5,
-      dataEncryption: true,
-      auditLog: true,
+      dataEncryption: false,
+      auditLog: false,
       backupFrequency: 'daily'
     },
     academic: {
@@ -40,9 +42,12 @@ const SettingsManagement: React.FC = () => {
       attendanceRequired: 80,
       maxAbsences: 10,
       termDuration: 'trimester',
-      evaluationTypes: ['exam', 'homework', 'participation', 'project']
+      evaluationTypes: []
     }
   });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
   const tabs = [
     { id: 'general', name: 'Général', icon: School },
@@ -51,10 +56,55 @@ const SettingsManagement: React.FC = () => {
     { id: 'academic', name: 'Académique', icon: Users }
   ];
 
-  const handleSave = () => {
-    // In a real app, this would save to the backend
-    alert('Paramètres sauvegardés avec succès !');
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    try {
+      setLoading(true);
+      const data = await settingsService.getAll();
+
+      setSettings({
+        general: data.general || settings.general,
+        notifications: {
+          ...settings.notifications,
+          ...(data.notifications || {})
+        },
+        security: {
+          ...settings.security,
+          ...(data.security || {})
+        },
+        academic: {
+          ...settings.academic,
+          ...(data.academic || {})
+        }
+      });
+    } catch (err) {
+      console.error('Error fetching settings:', err);
+      setMessage({ type: 'error', text: 'Erreur lors du chargement des paramètres' });
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      setMessage(null);
+      await settingsService.update(settings);
+      setMessage({ type: 'success', text: 'Paramètres sauvegardés avec succès !' });
+    } catch (err) {
+      console.error('Error saving settings:', err);
+      setMessage({ type: 'error', text: 'Erreur lors de la sauvegarde des paramètres' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
 
   const GeneralSettings = () => (
     <div className="space-y-6">
@@ -432,12 +482,19 @@ const SettingsManagement: React.FC = () => {
         </div>
         <button
           onClick={handleSave}
-          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          disabled={saving}
+          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
         >
           <Save className="h-4 w-4 mr-2" />
-          Sauvegarder
+          {saving ? 'Sauvegarde...' : 'Sauvegarder'}
         </button>
       </div>
+
+      {message && (
+        <div className={`p-4 rounded-lg ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+          {message.text}
+        </div>
+      )}
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         {/* Tabs */}

@@ -18,6 +18,10 @@ const dashboardRoutes = require('./routes/dashboard');
 const attendanceRoutes = require('./routes/attendances');
 const teacherRoutes = require('./routes/teacher');
 const parentChildrenRoutes = require('./routes/parent-children');
+const messageRoutes = require('./routes/messages');
+const reportRoutes = require('./routes/reports');
+const settingsRoutes = require('./routes/settings');
+const systemRoutes = require('./routes/system');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -46,6 +50,10 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/attendances', attendanceRoutes);
 app.use('/api/teacher', teacherRoutes);
 app.use('/api/parent-children', parentChildrenRoutes);
+app.use('/api/messages', messageRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/system', systemRoutes);
 
 // Route de test
 app.get('/api/health', (req, res) => {

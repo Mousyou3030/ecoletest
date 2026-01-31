@@ -364,4 +364,65 @@ export const teacherService = {
   }
 };
 
+export const reportService = {
+  getAcademic: async (params?: any) => {
+    const response = await api.get('/reports/academic', { params });
+    return response.data;
+  },
+
+  getAttendance: async (params?: any) => {
+    const response = await api.get('/reports/attendance', { params });
+    return response.data;
+  },
+
+  getFinancial: async (params?: any) => {
+    const response = await api.get('/reports/financial', { params });
+    return response.data;
+  },
+
+  getEnrollment: async () => {
+    const response = await api.get('/reports/enrollment');
+    return response.data;
+  }
+};
+
+export const settingsService = {
+  getAll: async () => {
+    const response = await api.get('/settings');
+    return response.data;
+  },
+
+  getByCategory: async (category: string) => {
+    const response = await api.get(`/settings/${category}`);
+    return response.data;
+  },
+
+  update: async (settings: any) => {
+    const response = await api.put('/settings', settings);
+    return response.data;
+  }
+};
+
+export const systemService = {
+  getStatus: async () => {
+    const response = await api.get('/system/status');
+    return response.data;
+  },
+
+  getLogs: async (params?: any) => {
+    const response = await api.get('/system/logs', { params });
+    return response.data;
+  },
+
+  getUsersActivity: async () => {
+    const response = await api.get('/system/users-activity');
+    return response.data;
+  },
+
+  getPerformance: async () => {
+    const response = await api.get('/system/performance');
+    return response.data;
+  }
+};
+
 export default api;

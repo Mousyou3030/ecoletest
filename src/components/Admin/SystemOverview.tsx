@@ -1,50 +1,91 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Server, Database, Shield, Activity, AlertTriangle, CheckCircle, Clock, Users } from 'lucide-react';
+import { systemService } from '../../services/api';
+import LoadingSpinner from '../Common/LoadingSpinner';
 
 const SystemOverview: React.FC = () => {
+  const [systemStatus, setSystemStatus] = useState<any>(null);
+  const [userActivity, setUserActivity] = useState<any>(null);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchSystemData();
+
+    const interval = setInterval(fetchSystemData, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchSystemData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const [status, activity, systemLogs] = await Promise.all([
+        systemService.getStatus(),
+        systemService.getUsersActivity(),
+        systemService.getLogs({ limit: 10 })
+      ]);
+
+      setSystemStatus(status);
+      setUserActivity(activity);
+      setLogs(systemLogs);
+    } catch (err: any) {
+      console.error('Error fetching system data:', err);
+      setError('Erreur lors du chargement des données système');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading && !systemStatus) {
+    return <LoadingSpinner />;
+  }
+
+  if (error && !systemStatus) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <p className="text-red-800">{error}</p>
+        <button
+          onClick={fetchSystemData}
+          className="mt-2 text-red-600 hover:text-red-800 font-medium"
+        >
+          Réessayer
+        </button>
+      </div>
+    );
+  }
+
   const systemStats = [
     {
       title: 'Statut Serveur',
-      value: 'En ligne',
-      status: 'success',
+      value: systemStatus?.server?.status === 'operational' ? 'En ligne' : 'Hors ligne',
+      status: systemStatus?.server?.status === 'operational' ? 'success' : 'error',
       icon: Server,
-      details: 'Temps de fonctionnement: 99.9%'
+      details: systemStatus?.server?.uptimeFormatted ? `Temps de fonctionnement: ${systemStatus.server.uptimeFormatted}` : 'N/A'
     },
     {
       title: 'Base de Données',
-      value: 'Opérationnelle',
-      status: 'success',
+      value: systemStatus?.database?.status === 'connected' ? 'Opérationnelle' : 'Déconnectée',
+      status: systemStatus?.database?.status === 'connected' ? 'success' : 'error',
       icon: Database,
-      details: 'Dernière sauvegarde: Il y a 2h'
+      details: systemStatus?.database?.type || 'MySQL'
     },
     {
-      title: 'Sécurité',
-      value: 'Sécurisé',
-      status: 'success',
+      title: 'Mémoire',
+      value: `${systemStatus?.memory?.usagePercent || 0}%`,
+      status: (systemStatus?.memory?.usagePercent || 0) > 80 ? 'warning' : 'success',
       icon: Shield,
-      details: 'Aucune menace détectée'
+      details: `${Math.round((systemStatus?.memory?.used || 0) / 1024 / 1024 / 1024)}GB / ${Math.round((systemStatus?.memory?.total || 0) / 1024 / 1024 / 1024)}GB`
     },
     {
       title: 'Performance',
-      value: 'Optimale',
-      status: 'warning',
+      value: systemStatus?.cpu?.cores ? `${systemStatus.cpu.cores} cores` : 'N/A',
+      status: 'success',
       icon: Activity,
-      details: 'Charge CPU: 65%'
+      details: `Charge: ${systemStatus?.cpu?.loadAverage?.[0]?.toFixed(2) || 'N/A'}`
     }
-  ];
-
-  const recentAlerts = [
-    { id: 1, type: 'info', message: 'Sauvegarde automatique effectuée', time: '2h' },
-    { id: 2, type: 'warning', message: 'Utilisation mémoire élevée (78%)', time: '4h' },
-    { id: 3, type: 'success', message: 'Mise à jour sécurité installée', time: '1j' },
-    { id: 4, type: 'info', message: 'Nouveau certificat SSL activé', time: '2j' }
-  ];
-
-  const userActivity = [
-    { role: 'Administrateurs', online: 3, total: 5 },
-    { role: 'Enseignants', online: 24, total: 87 },
-    { role: 'Élèves', online: 156, total: 1247 },
-    { role: 'Parents', online: 89, total: 892 }
   ];
 
   const getStatusColor = (status: string) => {
@@ -102,19 +143,23 @@ const SystemOverview: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Alerts */}
+        {/* Recent Alerts / Logs */}
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Alertes Récentes</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Logs Récents</h3>
           <div className="space-y-4">
-            {recentAlerts.map((alert) => (
-              <div key={alert.id} className="flex items-start space-x-3">
-                {getAlertIcon(alert.type)}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900">{alert.message}</p>
-                  <p className="text-xs text-gray-500">Il y a {alert.time}</p>
+            {logs.length === 0 ? (
+              <p className="text-sm text-gray-500">Aucun log disponible</p>
+            ) : (
+              logs.slice(0, 10).map((log: any) => (
+                <div key={log.id} className="flex items-start space-x-3">
+                  {getAlertIcon(log.level)}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900">{log.message}</p>
+                    <p className="text-xs text-gray-500">{new Date(log.created_at).toLocaleString('fr-FR')}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
@@ -122,19 +167,35 @@ const SystemOverview: React.FC = () => {
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Activité Utilisateurs</h3>
           <div className="space-y-4">
-            {userActivity.map((activity, index) => (
+            {userActivity?.summary && (
+              <div className="grid grid-cols-3 gap-4 mb-4 p-4 bg-blue-50 rounded-lg">
+                <div>
+                  <p className="text-xs text-gray-600">24h</p>
+                  <p className="text-lg font-bold text-blue-600">{userActivity.summary.last_24h}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-600">7 jours</p>
+                  <p className="text-lg font-bold text-blue-600">{userActivity.summary.last_7days}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-600">30 jours</p>
+                  <p className="text-lg font-bold text-blue-600">{userActivity.summary.last_30days}</p>
+                </div>
+              </div>
+            )}
+            {(userActivity?.byRole || []).map((activity: any, index: number) => (
               <div key={index} className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <Users className="h-5 w-5 text-gray-400" />
-                  <span className="text-sm font-medium text-gray-900">{activity.role}</span>
+                  <span className="text-sm font-medium text-gray-900 capitalize">{activity.role}</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="text-sm text-green-600 font-medium">{activity.online}</span>
-                  <span className="text-sm text-gray-500">/ {activity.total}</span>
+                  <span className="text-sm text-green-600 font-medium">{activity.active_users}</span>
+                  <span className="text-sm text-gray-500">/ {activity.total_users}</span>
                   <div className="w-16 bg-gray-200 rounded-full h-2">
-                    <div 
+                    <div
                       className="bg-green-500 h-2 rounded-full"
-                      style={{ width: `${(activity.online / activity.total) * 100}%` }}
+                      style={{ width: `${activity.total_users > 0 ? (activity.active_users / activity.total_users) * 100 : 0}%` }}
                     ></div>
                   </div>
                 </div>

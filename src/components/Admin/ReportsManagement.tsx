@@ -1,9 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BarChart3, Download, Calendar, Users, BookOpen, TrendingUp, PieChart, FileText } from 'lucide-react';
+import { reportService, classService, courseService } from '../../services/api';
+import LoadingSpinner from '../Common/LoadingSpinner';
 
 const ReportsManagement: React.FC = () => {
   const [selectedReport, setSelectedReport] = useState('academic');
   const [selectedPeriod, setSelectedPeriod] = useState('month');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [academicData, setAcademicData] = useState<any>(null);
+  const [attendanceData, setAttendanceData] = useState<any>(null);
+  const [financialData, setFinancialData] = useState<any>(null);
+  const [enrollmentData, setEnrollmentData] = useState<any>(null);
+  const [classes, setClasses] = useState<any[]>([]);
+  const [courses, setCourses] = useState<any[]>([]);
+  const [filters, setFilters] = useState({
+    classId: '',
+    courseId: '',
+    startDate: '',
+    endDate: '',
+    status: ''
+  });
 
   const reportTypes = [
     { id: 'academic', name: 'Rapport Académique', icon: BookOpen, description: 'Performances et notes des élèves' },
@@ -12,160 +29,109 @@ const ReportsManagement: React.FC = () => {
     { id: 'enrollment', name: 'Rapport d\'Inscription', icon: FileText, description: 'Évolution des inscriptions' }
   ];
 
-  // Mock data for charts
-  const academicData = {
-    averageGrades: [
-      { subject: 'Mathématiques', average: 14.2, students: 120 },
-      { subject: 'Français', average: 13.8, students: 120 },
-      { subject: 'Histoire', average: 15.1, students: 120 },
-      { subject: 'Anglais', average: 13.5, students: 120 },
-      { subject: 'Sciences', average: 14.7, students: 120 }
-    ],
-    classPerformance: [
-      { class: '6ème A', average: 14.5, students: 28 },
-      { class: '6ème B', average: 13.9, students: 26 },
-      { class: '3ème A', average: 15.2, students: 24 },
-      { class: '3ème B', average: 14.1, students: 25 }
-    ]
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
+
+  useEffect(() => {
+    fetchReportData();
+  }, [selectedReport, filters]);
+
+  const fetchInitialData = async () => {
+    try {
+      const [classesData, coursesData] = await Promise.all([
+        classService.getAll(),
+        courseService.getAll()
+      ]);
+      setClasses(classesData.classes || classesData || []);
+      setCourses(coursesData.courses || coursesData || []);
+    } catch (err) {
+      console.error('Error fetching initial data:', err);
+    }
   };
 
-  const attendanceData = {
-    monthly: [
-      { month: 'Jan', rate: 94 },
-      { month: 'Fév', rate: 92 },
-      { month: 'Mar', rate: 96 },
-      { month: 'Avr', rate: 93 },
-      { month: 'Mai', rate: 95 }
-    ],
-    byClass: [
-      { class: '6ème A', rate: 95, absences: 12 },
-      { class: '6ème B', rate: 92, absences: 18 },
-      { class: '3ème A', rate: 97, absences: 8 },
-      { class: '3ème B', rate: 94, absences: 14 }
-    ]
+  const fetchReportData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      switch (selectedReport) {
+        case 'academic':
+          const academicResult = await reportService.getAcademic(filters);
+          setAcademicData(academicResult);
+          break;
+        case 'attendance':
+          const attendanceResult = await reportService.getAttendance(filters);
+          setAttendanceData(attendanceResult);
+          break;
+        case 'financial':
+          const financialResult = await reportService.getFinancial(filters);
+          setFinancialData(financialResult);
+          break;
+        case 'enrollment':
+          const enrollmentResult = await reportService.getEnrollment();
+          setEnrollmentData(enrollmentResult);
+          break;
+      }
+    } catch (err: any) {
+      console.error('Error fetching report:', err);
+      setError('Erreur lors du chargement du rapport');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const financialData = {
-    revenue: [
-      { month: 'Jan', amount: 45230 },
-      { month: 'Fév', amount: 48150 },
-      { month: 'Mar', amount: 46890 },
-      { month: 'Avr', amount: 49200 },
-      { month: 'Mai', amount: 47650 }
-    ],
-    breakdown: [
-      { type: 'Scolarité', amount: 180000, percentage: 75 },
-      { type: 'Cantine', amount: 36000, percentage: 15 },
-      { type: 'Transport', amount: 18000, percentage: 7.5 },
-      { type: 'Matériel', amount: 6000, percentage: 2.5 }
-    ]
-  };
+  const AcademicReport = () => {
+    if (!academicData) return <div className="text-center py-8">Aucune donnée disponible</div>;
 
-  const AcademicReport = () => (
+    return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Average Grades by Subject */}
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Moyennes par Matière</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Performance Académique</h3>
           <div className="space-y-4">
-            {academicData.averageGrades.map((subject, index) => (
+            {academicData.summary && (
+              <div className="bg-blue-50 p-4 rounded-lg mb-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-600">Total Étudiants</p>
+                    <p className="text-2xl font-bold text-blue-600">{academicData.summary.totalStudents}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Moyenne Générale</p>
+                    <p className="text-2xl font-bold text-blue-600">{academicData.summary.overallAverage?.toFixed(2)}/20</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            {(academicData.details || []).slice(0, 5).map((detail: any, index: number) => (
               <div key={index} className="flex items-center justify-between">
                 <div className="flex-1">
                   <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm font-medium text-gray-700">{subject.subject}</span>
-                    <span className="text-sm font-bold text-gray-900">{subject.average}/20</span>
+                    <span className="text-sm font-medium text-gray-700">{detail.student_name} - {detail.course_name}</span>
+                    <span className="text-sm font-bold text-gray-900">{parseFloat(detail.average_grade)?.toFixed(2)}/20</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
+                    <div
                       className={`h-2 rounded-full ${
-                        subject.average >= 15 ? 'bg-green-500' :
-                        subject.average >= 12 ? 'bg-blue-500' :
-                        subject.average >= 10 ? 'bg-yellow-500' : 'bg-red-500'
+                        detail.average_grade >= 15 ? 'bg-green-500' :
+                        detail.average_grade >= 12 ? 'bg-blue-500' :
+                        detail.average_grade >= 10 ? 'bg-yellow-500' : 'bg-red-500'
                       }`}
-                      style={{ width: `${(subject.average / 20) * 100}%` }}
+                      style={{ width: `${(detail.average_grade / 20) * 100}%` }}
                     ></div>
                   </div>
-                  <span className="text-xs text-gray-500">{subject.students} élèves</span>
+                  <span className="text-xs text-gray-500">{detail.class_name}</span>
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-
-        {/* Class Performance */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Performance par Classe</h3>
-          <div className="space-y-4">
-            {academicData.classPerformance.map((cls, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-medium text-gray-900">{cls.class}</p>
-                  <p className="text-sm text-gray-500">{cls.students} élèves</p>
-                </div>
-                <div className="text-right">
-                  <p className={`text-lg font-bold ${
-                    cls.average >= 15 ? 'text-green-600' :
-                    cls.average >= 12 ? 'text-blue-600' :
-                    cls.average >= 10 ? 'text-yellow-600' : 'text-red-600'
-                  }`}>
-                    {cls.average}/20
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="p-3 rounded-lg bg-green-100">
-              <TrendingUp className="h-6 w-6 text-green-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Moyenne Générale</p>
-              <p className="text-2xl font-bold text-gray-900">14.3/20</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="p-3 rounded-lg bg-blue-100">
-              <Users className="h-6 w-6 text-blue-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Taux de Réussite</p>
-              <p className="text-2xl font-bold text-gray-900">87%</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="p-3 rounded-lg bg-purple-100">
-              <BookOpen className="h-6 w-6 text-purple-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Élèves Évalués</p>
-              <p className="text-2xl font-bold text-gray-900">120</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="p-3 rounded-lg bg-orange-100">
-              <FileText className="h-6 w-6 text-orange-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Notes Saisies</p>
-              <p className="text-2xl font-bold text-gray-900">1,247</p>
-            </div>
           </div>
         </div>
       </div>
     </div>
-  );
+    );
+  };
 
   const AttendanceReport = () => (
     <div className="space-y-6">
