@@ -132,6 +132,32 @@ router.get('/courses/:teacherId', authenticateToken, async (req, res) => {
   }
 });
 
+router.get('/courses/:courseId/students', authenticateToken, async (req, res) => {
+  try {
+    const { courseId } = req.params;
+
+    const students = await pool.execute(
+      `SELECT DISTINCT
+        u.id,
+        CONCAT(u.firstName, ' ', u.lastName) as name,
+        u.firstName,
+        u.lastName,
+        u.email
+       FROM users u
+       JOIN attendances a ON u.id = a.studentId
+       JOIN courses co ON a.classId = co.classId
+       WHERE co.id = ? AND u.role = 'student'
+       ORDER BY u.lastName, u.firstName`,
+      [courseId]
+    );
+
+    res.json(students[0]);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des étudiants:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 router.get('/schedules/:teacherId', authenticateToken, async (req, res) => {
   try {
     const { teacherId } = req.params;

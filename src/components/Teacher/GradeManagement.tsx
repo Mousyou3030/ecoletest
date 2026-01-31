@@ -12,6 +12,7 @@ const GradeManagement: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [courses, setCourses] = useState<any[]>([]);
   const [grades, setGrades] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -25,6 +26,9 @@ const GradeManagement: React.FC = () => {
   useEffect(() => {
     if (user?.id) {
       fetchGrades();
+      if (selectedCourse && selectedCourse !== 'all') {
+        fetchStudents();
+      }
     }
   }, [selectedCourse, selectedType]);
 
@@ -54,6 +58,15 @@ const GradeManagement: React.FC = () => {
       setError('Erreur lors du chargement des notes');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchStudents = async () => {
+    try {
+      const response = await teacherService.getCourseStudents(selectedCourse);
+      setStudents(response);
+    } catch (err) {
+      console.error('Erreur lors du chargement des étudiants:', err);
     }
   };
 
@@ -103,16 +116,27 @@ const GradeManagement: React.FC = () => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 w-full max-w-md">
         <h3 className="text-lg font-semibold mb-4">Ajouter une note</h3>
-        <form className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Élève</label>
-            <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
-              <option value="">Sélectionner un élève</option>
-              {students.map(student => (
-                <option key={student.id} value={student.id}>{student.name}</option>
-              ))}
-            </select>
+        {!selectedCourse || selectedCourse === 'all' ? (
+          <div className="text-center py-4">
+            <p className="text-gray-600 mb-4">Veuillez sélectionner un cours spécifique pour ajouter une note.</p>
+            <button
+              onClick={() => setShowAddModal(false)}
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+            >
+              Fermer
+            </button>
           </div>
+        ) : (
+          <form className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Élève</label>
+              <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
+                <option value="">Sélectionner un élève</option>
+                {students.map(student => (
+                  <option key={student.id} value={student.id}>{student.name}</option>
+                ))}
+              </select>
+            </div>
           
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -149,22 +173,23 @@ const GradeManagement: React.FC = () => {
             ></textarea>
           </div>
 
-          <div className="flex justify-end space-x-3 pt-4">
-            <button
-              type="button"
-              onClick={() => setShowAddModal(false)}
-              className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Ajouter la note
-            </button>
-          </div>
-        </form>
+            <div className="flex justify-end space-x-3 pt-4">
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Ajouter la note
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
@@ -310,8 +335,8 @@ const GradeManagement: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredGrades.map((grade) => (
-                  <tr key={grade.id} className="hover:bg-gray-50">
+                filteredGrades.map((grade, index) => (
+                  <tr key={`${grade.id}-${grade.studentId}-${index}`} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
                         {grade.studentName || 'Élève inconnu'}

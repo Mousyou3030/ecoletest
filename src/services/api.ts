@@ -361,6 +361,11 @@ export const teacherService = {
   getStudentsByClass: async (teacherId: string, classId: string) => {
     const response = await api.get(`/teacher/classes/${teacherId}/${classId}/students`);
     return response.data;
+  },
+
+  getCourseStudents: async (courseId: string) => {
+    const response = await api.get(`/teacher/courses/${courseId}/students`);
+    return response.data;
   }
 };
 
