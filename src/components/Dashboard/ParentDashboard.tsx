@@ -80,8 +80,15 @@ const ParentDashboard: React.FC = () => {
       </div>
 
       {/* Children Overview */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {children.map((child) => (
+      {children.length === 0 ? (
+        <div className="bg-white p-8 rounded-lg shadow-sm border border-gray-200 text-center">
+          <User className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-600">Aucun enfant associé à ce compte</p>
+          <p className="text-sm text-gray-500 mt-2">Contactez l'administration pour associer vos enfants à votre compte</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {children.map((child) => (
           <div key={child.id} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
             <div className="flex items-center mb-4">
               <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-3">
@@ -115,35 +122,46 @@ const ParentDashboard: React.FC = () => {
                 <Clock className="h-4 w-4 mr-1" />
                 Prochain cours
               </div>
-              <p className="font-medium text-gray-900">
-                {child.nextClass.subject} à {child.nextClass.time}
-              </p>
-              <p className="text-sm text-gray-500">{child.nextClass.room}</p>
+              {child.nextClass ? (
+                <>
+                  <p className="font-medium text-gray-900">
+                    {child.nextClass.subject} à {child.nextClass.time}
+                  </p>
+                  <p className="text-sm text-gray-500">{child.nextClass.room}</p>
+                </>
+              ) : (
+                <p className="text-sm text-gray-500">Aucun cours à venir</p>
+              )}
             </div>
           </div>
         ))}
-      </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Activity */}
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Activité Récente</h3>
           <div className="space-y-4">
-            {recentEvents.map((event, index) => (
-              <div key={index} className="flex items-start space-x-3">
-                <div className={`w-2 h-2 rounded-full mt-2 ${
-                  event.type === 'grade' ? 'bg-green-500' :
-                  event.type === 'absence' ? 'bg-red-500' :
-                  event.type === 'payment' ? 'bg-blue-500' : 'bg-purple-500'
-                }`}></div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900">
-                    {event.child} - {event.message}
-                  </p>
-                  <p className="text-xs text-gray-500">Il y a {event.time}</p>
+            {recentEvents.length > 0 ? (
+              recentEvents.map((event, index) => (
+                <div key={index} className="flex items-start space-x-3">
+                  <div className={`w-2 h-2 rounded-full mt-2 ${
+                    event.type === 'grade' ? 'bg-green-500' :
+                    event.type === 'absence' ? 'bg-red-500' :
+                    event.type === 'payment' ? 'bg-blue-500' : 'bg-purple-500'
+                  }`}></div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900">
+                      {event.child} - {event.message}
+                    </p>
+                    <p className="text-xs text-gray-500">Il y a {event.time}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-sm text-gray-500 text-center py-4">Aucune activité récente</p>
+            )}
           </div>
         </div>
 
@@ -154,15 +172,19 @@ const ParentDashboard: React.FC = () => {
             <h3 className="text-lg font-semibold text-gray-900">Événements à Venir</h3>
           </div>
           <div className="space-y-3">
-            {upcomingEvents.map((event, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-medium text-gray-900">{event.event}</p>
-                  <p className="text-sm text-gray-500">{event.child}</p>
+            {upcomingEvents.length > 0 ? (
+              upcomingEvents.map((event, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <p className="font-medium text-gray-900">{event.event}</p>
+                    <p className="text-sm text-gray-500">{event.child}</p>
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">{event.date}</span>
                 </div>
-                <span className="text-sm font-medium text-gray-700">{event.date}</span>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-sm text-gray-500 text-center py-4">Aucun événement à venir</p>
+            )}
           </div>
         </div>
       </div>
