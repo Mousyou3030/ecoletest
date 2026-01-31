@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../config/database');
+const { pool } = require('../config/database');
 const { authenticate: auth } = require('../middleware/auth');
 
 router.get('/', auth, async (req, res) => {
@@ -32,7 +32,7 @@ router.get('/', auth, async (req, res) => {
 
     query += ' ORDER BY m.created_at DESC';
 
-    const [messages] = await db.query(query, params);
+    const [messages] = await pool.execute(query, params);
 
     res.json({ messages });
   } catch (error) {
@@ -43,7 +43,7 @@ router.get('/', auth, async (req, res) => {
 
 router.get('/:id', auth, async (req, res) => {
   try {
-    const [messages] = await db.query(
+    const [messages] = await pool.execute(
       `SELECT
         m.*,
         sender.full_name as sender_name,
@@ -74,13 +74,13 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ message: 'Données manquantes' });
     }
 
-    const [result] = await db.query(
+    const [result] = await pool.execute(
       `INSERT INTO messages (sender_id, recipient_id, subject, content, is_read)
        VALUES (?, ?, ?, ?, false)`,
       [req.user.id, recipient_id, subject, content]
     );
 
-    const [newMessage] = await db.query(
+    const [newMessage] = await pool.execute(
       `SELECT
         m.*,
         sender.full_name as sender_name,
@@ -101,7 +101,7 @@ router.post('/', auth, async (req, res) => {
 
 router.put('/:id/read', auth, async (req, res) => {
   try {
-    await db.query(
+    await pool.execute(
       'UPDATE messages SET is_read = true WHERE id = ?',
       [req.params.id]
     );
@@ -115,7 +115,7 @@ router.put('/:id/read', auth, async (req, res) => {
 
 router.delete('/:id', auth, async (req, res) => {
   try {
-    await db.query('DELETE FROM messages WHERE id = ?', [req.params.id]);
+    await pool.execute('DELETE FROM messages WHERE id = ?', [req.params.id]);
     res.json({ message: 'Message supprimé avec succès' });
   } catch (error) {
     console.error('Error deleting message:', error);

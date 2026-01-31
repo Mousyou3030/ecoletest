@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../config/database');
+const { pool } = require('../config/database');
 const { authenticate: auth } = require('../middleware/auth');
 
 router.get('/academic', auth, async (req, res) => {
@@ -47,7 +47,7 @@ router.get('/academic', auth, async (req, res) => {
 
     query += ' GROUP BY c.id, co.id, u.id ORDER BY average_grade DESC';
 
-    const [results] = await db.query(query, params);
+    const [results] = await pool.execute(query, params);
 
     const summary = {
       totalStudents: results.length,
@@ -104,7 +104,7 @@ router.get('/attendance', auth, async (req, res) => {
 
     query += ' GROUP BY c.id, u.id ORDER BY attendance_rate DESC';
 
-    const [results] = await db.query(query, params);
+    const [results] = await pool.execute(query, params);
 
     const summary = {
       totalStudents: results.length,
@@ -161,7 +161,7 @@ router.get('/financial', auth, async (req, res) => {
 
     query += ' ORDER BY p.payment_date DESC';
 
-    const [results] = await db.query(query, params);
+    const [results] = await pool.execute(query, params);
 
     const summary = {
       totalPayments: results.length,
@@ -183,7 +183,7 @@ router.get('/financial', auth, async (req, res) => {
 
 router.get('/enrollment', auth, async (req, res) => {
   try {
-    const [classCounts] = await db.query(`
+    const [classCounts] = await pool.execute(`
       SELECT
         c.name as class_name,
         c.level,
@@ -196,7 +196,7 @@ router.get('/enrollment', auth, async (req, res) => {
       ORDER BY c.level, c.name
     `);
 
-    const [totalStats] = await db.query(`
+    const [totalStats] = await pool.execute(`
       SELECT
         COUNT(CASE WHEN role = 'student' THEN 1 END) as total_students,
         COUNT(CASE WHEN role = 'teacher' THEN 1 END) as total_teachers,

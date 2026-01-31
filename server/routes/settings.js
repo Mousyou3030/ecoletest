@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../config/database');
+const { pool } = require('../config/database');
 const { authenticate: auth } = require('../middleware/auth');
 
 router.get('/', auth, async (req, res) => {
   try {
-    const [settings] = await db.query('SELECT * FROM settings ORDER BY category, setting_key');
+    const [settings] = await pool.execute('SELECT * FROM settings ORDER BY category, setting_key');
 
     const grouped = settings.reduce((acc, setting) => {
       if (!acc[setting.category]) {
@@ -44,7 +44,7 @@ router.put('/', auth, async (req, res) => {
           ? JSON.stringify(settingsData[category][key])
           : String(settingsData[category][key]);
 
-        await db.query(
+        await pool.execute(
           `INSERT INTO settings (category, setting_key, setting_value)
            VALUES (?, ?, ?)
            ON DUPLICATE KEY UPDATE setting_value = ?`,
@@ -62,7 +62,7 @@ router.put('/', auth, async (req, res) => {
 
 router.get('/:category', auth, async (req, res) => {
   try {
-    const [settings] = await db.query(
+    const [settings] = await pool.execute(
       'SELECT * FROM settings WHERE category = ?',
       [req.params.category]
     );

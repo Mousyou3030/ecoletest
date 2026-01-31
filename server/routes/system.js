@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../config/database');
+const { pool } = require('../config/database');
 const { authenticate: auth } = require('../middleware/auth');
 const os = require('os');
 
@@ -10,7 +10,7 @@ router.get('/status', auth, async (req, res) => {
       return res.status(403).json({ message: 'Accès refusé' });
     }
 
-    const [dbStatus] = await db.query('SELECT 1 as status');
+    const [dbStatus] = await pool.execute('SELECT 1 as status');
 
     const uptime = process.uptime();
     const totalMemory = os.totalmem();
@@ -68,7 +68,7 @@ router.get('/logs', auth, async (req, res) => {
     query += ' ORDER BY created_at DESC LIMIT ?';
     params.push(parseInt(limit));
 
-    const [logs] = await db.query(query, params);
+    const [logs] = await pool.execute(query, params);
 
     res.json(logs);
   } catch (error) {
@@ -83,7 +83,7 @@ router.get('/users-activity', auth, async (req, res) => {
       return res.status(403).json({ message: 'Accès refusé' });
     }
 
-    const [activeUsers] = await db.query(`
+    const [activeUsers] = await pool.execute(`
       SELECT
         COUNT(CASE WHEN last_login >= DATE_SUB(NOW(), INTERVAL 1 DAY) THEN 1 END) as last_24h,
         COUNT(CASE WHEN last_login >= DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 END) as last_7days,
@@ -92,7 +92,7 @@ router.get('/users-activity', auth, async (req, res) => {
       WHERE last_login IS NOT NULL
     `);
 
-    const [recentActivity] = await db.query(`
+    const [recentActivity] = await pool.execute(`
       SELECT
         u.full_name,
         u.role,
@@ -104,7 +104,7 @@ router.get('/users-activity', auth, async (req, res) => {
       LIMIT 20
     `);
 
-    const [byRole] = await db.query(`
+    const [byRole] = await pool.execute(`
       SELECT
         role,
         COUNT(*) as total_users,
@@ -130,7 +130,7 @@ router.get('/performance', auth, async (req, res) => {
       return res.status(403).json({ message: 'Accès refusé' });
     }
 
-    const [dbSize] = await db.query(`
+    const [dbSize] = await pool.execute(`
       SELECT
         table_schema as 'database',
         SUM(data_length + index_length) as size_bytes,
@@ -140,7 +140,7 @@ router.get('/performance', auth, async (req, res) => {
       GROUP BY table_schema
     `);
 
-    const [tableSizes] = await db.query(`
+    const [tableSizes] = await pool.execute(`
       SELECT
         table_name,
         ROUND((data_length + index_length) / 1024 / 1024, 2) as size_mb,
