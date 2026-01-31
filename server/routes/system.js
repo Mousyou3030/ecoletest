@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
-const auth = require('../middleware/auth');
+const { authenticate: auth } = require('../middleware/auth');
 const os = require('os');
 
 router.get('/status', auth, async (req, res) => {
