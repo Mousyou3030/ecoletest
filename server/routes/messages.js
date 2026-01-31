@@ -5,7 +5,7 @@ const { authenticate: auth } = require('../middleware/auth');
 
 router.get('/', auth, async (req, res) => {
   try {
-    const { recipientId, senderId } = req.query;
+    const { recipientId, senderId, userId } = req.query;
 
     let query = `
       SELECT
@@ -13,28 +13,45 @@ router.get('/', auth, async (req, res) => {
         sender.full_name as sender_name,
         recipient.full_name as recipient_name
       FROM messages m
-      LEFT JOIN users sender ON m.sender_id = sender.id
-      LEFT JOIN users recipient ON m.recipient_id = recipient.id
+      LEFT JOIN users sender ON m.senderId = sender.id
+      LEFT JOIN users recipient ON m.receiverId = recipient.id
       WHERE 1=1
     `;
 
     const params = [];
 
-    if (recipientId) {
-      query += ' AND m.recipient_id = ?';
-      params.push(recipientId);
+    if (userId) {
+      query += ' AND (m.receiverId = ? OR m.senderId = ?)';
+      params.push(userId, userId);
+    } else {
+      if (recipientId) {
+        query += ' AND m.receiverId = ?';
+        params.push(recipientId);
+      }
+
+      if (senderId) {
+        query += ' AND m.senderId = ?';
+        params.push(senderId);
+      }
     }
 
-    if (senderId) {
-      query += ' AND m.sender_id = ?';
-      params.push(senderId);
-    }
-
-    query += ' ORDER BY m.created_at DESC';
+    query += ' ORDER BY m.createdAt DESC';
 
     const [messages] = await pool.execute(query, params);
 
-    res.json({ messages });
+    const formattedMessages = messages.map(msg => ({
+      id: msg.id,
+      subject: msg.subject,
+      content: msg.content,
+      senderName: msg.sender_name,
+      recipientName: msg.recipient_name,
+      date: msg.createdAt,
+      read: msg.isRead,
+      senderId: msg.senderId,
+      recipientId: msg.receiverId
+    }));
+
+    res.json(formattedMessages);
   } catch (error) {
     console.error('Error fetching messages:', error);
     res.status(500).json({ message: 'Erreur lors de la récupération des messages' });
@@ -49,8 +66,8 @@ router.get('/:id', auth, async (req, res) => {
         sender.full_name as sender_name,
         recipient.full_name as recipient_name
       FROM messages m
-      LEFT JOIN users sender ON m.sender_id = sender.id
-      LEFT JOIN users recipient ON m.recipient_id = recipient.id
+      LEFT JOIN users sender ON m.senderId = sender.id
+      LEFT JOIN users recipient ON m.receiverId = recipient.id
       WHERE m.id = ?`,
       [req.params.id]
     );
@@ -75,7 +92,7 @@ router.post('/', auth, async (req, res) => {
     }
 
     const [result] = await pool.execute(
-      `INSERT INTO messages (sender_id, recipient_id, subject, content, is_read)
+      `INSERT INTO messages (senderId, receiverId, subject, content, isRead)
        VALUES (?, ?, ?, ?, false)`,
       [req.user.id, recipient_id, subject, content]
     );
@@ -86,8 +103,8 @@ router.post('/', auth, async (req, res) => {
         sender.full_name as sender_name,
         recipient.full_name as recipient_name
       FROM messages m
-      LEFT JOIN users sender ON m.sender_id = sender.id
-      LEFT JOIN users recipient ON m.recipient_id = recipient.id
+      LEFT JOIN users sender ON m.senderId = sender.id
+      LEFT JOIN users recipient ON m.receiverId = recipient.id
       WHERE m.id = ?`,
       [result.insertId]
     );
@@ -102,7 +119,7 @@ router.post('/', auth, async (req, res) => {
 router.put('/:id/read', auth, async (req, res) => {
   try {
     await pool.execute(
-      'UPDATE messages SET is_read = true WHERE id = ?',
+      'UPDATE messages SET isRead = true WHERE id = ?',
       [req.params.id]
     );
 
