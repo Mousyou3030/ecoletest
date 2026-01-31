@@ -33,6 +33,12 @@ import StudentGrades from './components/Student/MyGrades';
 import StudentAttendance from './components/Student/MyAttendance';
 import StudentMessages from './components/Student/MyMessages';
 import StudentNotifications from './components/Student/MyNotifications';
+import MyChildren from './components/Parent/MyChildren';
+import ChildrenGrades from './components/Parent/ChildrenGrades';
+import ChildrenAttendance from './components/Parent/ChildrenAttendance';
+import ChildrenSchedule from './components/Parent/ChildrenSchedule';
+import ParentMessages from './components/Parent/ParentMessages';
+import ParentFinances from './components/Parent/ParentFinances';
 import LoadingSpinner from './components/Common/LoadingSpinner';
 
 const MainApp: React.FC = () => {
@@ -131,6 +137,23 @@ const MainApp: React.FC = () => {
           return <StudentMessages />;
         case 'notifications':
           return <StudentNotifications />;
+      }
+    }
+
+    if (user.role === 'parent') {
+      switch (activeSection) {
+        case 'children':
+          return <MyChildren />;
+        case 'grades':
+          return <ChildrenGrades />;
+        case 'attendance':
+          return <ChildrenAttendance />;
+        case 'schedule':
+          return <ChildrenSchedule />;
+        case 'messages':
+          return <ParentMessages />;
+        case 'finances':
+          return <ParentFinances />;
       }
     }
 
