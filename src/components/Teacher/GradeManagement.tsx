@@ -28,6 +28,8 @@ const GradeManagement: React.FC = () => {
       fetchGrades();
       if (selectedCourse && selectedCourse !== 'all') {
         fetchStudents();
+      } else {
+        setStudents([]);
       }
     }
   }, [selectedCourse, selectedType]);
@@ -112,29 +114,42 @@ const GradeManagement: React.FC = () => {
     return (total / filteredGrades.length).toFixed(1);
   };
 
-  const AddGradeModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md">
-        <h3 className="text-lg font-semibold mb-4">Ajouter une note</h3>
-        {!selectedCourse || selectedCourse === 'all' ? (
-          <div className="text-center py-4">
-            <p className="text-gray-600 mb-4">Veuillez sélectionner un cours spécifique pour ajouter une note.</p>
-            <button
-              onClick={() => setShowAddModal(false)}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-            >
-              Fermer
-            </button>
+  const AddGradeModal = () => {
+    if (!selectedCourse || selectedCourse === 'all') {
+      return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">Ajouter une note</h3>
+            <div className="text-center py-4">
+              <p className="text-gray-600 mb-4">Veuillez sélectionner un cours spécifique pour ajouter une note.</p>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+              >
+                Fermer
+              </button>
+            </div>
           </div>
-        ) : (
+        </div>
+      );
+    }
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 w-full max-w-md">
+          <h3 className="text-lg font-semibold mb-4">Ajouter une note</h3>
           <form className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Élève</label>
               <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
                 <option value="">Sélectionner un élève</option>
-                {students.map(student => (
-                  <option key={student.id} value={student.id}>{student.name}</option>
-                ))}
+                {students && students.length > 0 ? (
+                  students.map(student => (
+                    <option key={student.id} value={student.id}>{student.name}</option>
+                  ))
+                ) : (
+                  <option disabled>Chargement des élèves...</option>
+                )}
               </select>
             </div>
           
@@ -189,10 +204,10 @@ const GradeManagement: React.FC = () => {
               </button>
             </div>
           </form>
-        )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -336,7 +351,7 @@ const GradeManagement: React.FC = () => {
                 </tr>
               ) : (
                 filteredGrades.map((grade, index) => (
-                  <tr key={`${grade.id}-${grade.studentId}-${index}`} className="hover:bg-gray-50">
+                  <tr key={`grade-${index}-${grade.id || ''}-${grade.studentId || ''}-${grade.courseId || ''}`} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
                         {grade.studentName || 'Élève inconnu'}

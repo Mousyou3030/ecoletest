@@ -11,18 +11,17 @@ router.get('/', authenticateToken, async (req, res) => {
     const { studentId, courseId, teacherId, type, classId } = req.query;
 
     let query = `
-      SELECT g.*,
+      SELECT DISTINCT g.*,
              CONCAT(s.firstName, ' ', s.lastName) as studentName,
              CONCAT(t.firstName, ' ', t.lastName) as teacherName,
              c.title as courseTitle,
              c.subject,
-             cl.name as className
+             c.classId,
+             (SELECT cl.name FROM classes cl WHERE cl.id = c.classId) as className
       FROM grades g
       LEFT JOIN users s ON g.studentId = s.id
       LEFT JOIN users t ON g.teacherId = t.id
       LEFT JOIN courses c ON g.courseId = c.id
-      LEFT JOIN student_classes cs ON s.id = cs.studentId AND cs.isActive = TRUE
-      LEFT JOIN classes cl ON cs.classId = cl.id
       WHERE 1=1
     `;
     let params = [];
@@ -48,11 +47,11 @@ router.get('/', authenticateToken, async (req, res) => {
     }
 
     if (classId) {
-      query += ' AND cl.id = ?';
+      query += ' AND c.classId = ?';
       params.push(classId);
     }
 
-    query += ' ORDER BY g.date DESC';
+    query += ' ORDER BY g.date DESC, g.createdAt DESC';
 
     const [grades] = await pool.execute(query, params);
     res.json(grades);
