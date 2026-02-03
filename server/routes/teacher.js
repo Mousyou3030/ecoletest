@@ -60,7 +60,16 @@ router.get('/classes/:teacherId', authenticateToken, async (req, res) => {
 
 router.get('/classes/:teacherId/:classId/students', authenticateToken, async (req, res) => {
   try {
-    const { classId } = req.params;
+    const { teacherId, classId } = req.params;
+
+    const [classCheck] = await pool.execute(
+      `SELECT id FROM classes WHERE id = ? AND teacherId = ?`,
+      [classId, teacherId]
+    );
+
+    if (classCheck.length === 0) {
+      return res.status(403).json({ error: 'Accès non autorisé à cette classe' });
+    }
 
     const students = await pool.execute(
       `SELECT DISTINCT
@@ -68,6 +77,7 @@ router.get('/classes/:teacherId/:classId/students', authenticateToken, async (re
         CONCAT(u.firstName, ' ', u.lastName) as name,
         u.firstName,
         u.lastName,
+        u.email,
         (SELECT g.value
          FROM grades g
          JOIN courses co ON g.courseId = co.id
@@ -79,9 +89,12 @@ router.get('/classes/:teacherId/:classId/students', authenticateToken, async (re
          WHERE a.studentId = u.id AND a.classId = ?
          AND a.date >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)) as attendance
        FROM users u
-       JOIN attendances a ON u.id = a.studentId
-       WHERE a.classId = ? AND u.role = 'student'
-       GROUP BY u.id, u.firstName, u.lastName`,
+       WHERE u.role = 'student'
+       AND EXISTS (
+         SELECT 1 FROM attendances a
+         WHERE a.studentId = u.id AND a.classId = ?
+       )
+       ORDER BY u.lastName, u.firstName`,
       [classId, classId, classId]
     );
 
@@ -135,6 +148,19 @@ router.get('/courses/:teacherId', authenticateToken, async (req, res) => {
 router.get('/courses/:courseId/students', authenticateToken, async (req, res) => {
   try {
     const { courseId } = req.params;
+
+    const [courseCheck] = await pool.execute(
+      `SELECT teacherId FROM courses WHERE id = ?`,
+      [courseId]
+    );
+
+    if (courseCheck.length === 0) {
+      return res.status(404).json({ error: 'Cours non trouvé' });
+    }
+
+    if (req.user.role === 'teacher' && courseCheck[0].teacherId !== req.user.id) {
+      return res.status(403).json({ error: 'Accès non autorisé à ce cours' });
+    }
 
     const students = await pool.execute(
       `SELECT DISTINCT
@@ -212,13 +238,14 @@ router.get('/grades/:teacherId', authenticateToken, async (req, res) => {
     const { courseId, classId } = req.query;
 
     let query = `
-      SELECT
+      SELECT DISTINCT
         g.id,
         g.value as grade,
         g.maxValue as maxGrade,
         g.type as examType,
         g.comments,
         g.createdAt,
+        g.date,
         CONCAT(u.firstName, ' ', u.lastName) as studentName,
         u.id as studentId,
         co.title as courseName,
@@ -229,6 +256,7 @@ router.get('/grades/:teacherId', authenticateToken, async (req, res) => {
        JOIN courses co ON g.courseId = co.id
        LEFT JOIN classes cl ON co.classId = cl.id
        WHERE co.teacherId = ?
+       AND u.role = 'student'
     `;
     const params = [teacherId];
 
@@ -271,6 +299,7 @@ router.get('/attendances/:teacherId', authenticateToken, async (req, res) => {
        JOIN users u ON a.studentId = u.id
        JOIN classes cl ON a.classId = cl.id
        WHERE cl.teacherId = ?
+       AND u.role = 'student'
     `;
     const params = [teacherId];
 

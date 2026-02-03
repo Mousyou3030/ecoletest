@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Users, CheckCircle, XCircle, Clock, Save, RefreshCw } from 'lucide-react';
-import { attendanceService, classService } from '../../services/api';
+import { attendanceService, teacherService } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface Student {
@@ -47,9 +47,11 @@ const TeacherAttendance: React.FC = () => {
   }, [selectedClass, selectedDate]);
 
   const loadClasses = async () => {
+    if (!user?.id) return;
+
     try {
       setLoading(true);
-      const classesData = await classService.getAll();
+      const classesData = await teacherService.getClasses(user.id);
       setClasses(classesData);
       if (classesData.length > 0) {
         setSelectedClass(classesData[0].id);
@@ -63,12 +65,12 @@ const TeacherAttendance: React.FC = () => {
   };
 
   const loadStudents = async () => {
+    if (!user?.id) return;
+
     try {
       setLoading(true);
-      const response = await classService.getStudents(selectedClass);
-      if (response.success) {
-        setStudents(response.data);
-      }
+      const studentsData = await teacherService.getStudentsByClass(user.id, selectedClass);
+      setStudents(studentsData);
     } catch (err: any) {
       setError('Erreur lors du chargement des élèves');
       console.error(err);
