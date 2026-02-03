@@ -217,9 +217,10 @@ router.get('/schedules/:teacherId', authenticateToken, async (req, res) => {
       }
       schedulesByDay[dayName].push({
         id: schedule.id,
-        time: `${schedule.startTime} - ${schedule.endTime}`,
+        startTime: schedule.startTime,
+        endTime: schedule.endTime,
         subject: schedule.courseName,
-        class: schedule.className,
+        className: schedule.className,
         room: schedule.room,
         classId: schedule.classId
       });

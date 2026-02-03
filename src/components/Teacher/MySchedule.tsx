@@ -10,12 +10,14 @@ const MySchedule: React.FC = () => {
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [viewMode, setViewMode] = useState<'week' | 'day'>('week');
   const [schedules, setSchedules] = useState<any>({});
+  const [classes, setClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (user?.id) {
       fetchSchedules();
+      fetchClasses();
     }
   }, [user?.id]);
 
@@ -29,6 +31,15 @@ const MySchedule: React.FC = () => {
       setError('Erreur lors du chargement du planning');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchClasses = async () => {
+    try {
+      const data = await teacherService.getClasses(user!.id);
+      setClasses(data);
+    } catch (err) {
+      console.error('Erreur lors du chargement des classes:', err);
     }
   };
 
@@ -217,7 +228,7 @@ const MySchedule: React.FC = () => {
                                 {schedule.subject}
                               </div>
                               <div className="text-xs text-blue-700">
-                                {classes.find(c => c.id === schedule.classId)?.name}
+                                {schedule.className}
                               </div>
                               <div className="flex items-center text-xs text-blue-600 mt-1">
                                 <MapPin className="h-3 w-3 mr-1" />
@@ -256,7 +267,7 @@ const MySchedule: React.FC = () => {
                     <div className="flex-1">
                       <h4 className="font-semibold text-gray-900">{schedule.subject}</h4>
                       <p className="text-sm text-gray-600">
-                        {classes.find(c => c.id === schedule.classId)?.name}
+                        {schedule.className}
                       </p>
                       <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
                         <div className="flex items-center">
