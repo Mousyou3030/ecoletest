@@ -326,4 +326,57 @@ router.get('/attendances/:teacherId', authenticateToken, async (req, res) => {
   }
 });
 
+router.get('/contacts/:teacherId', authenticateToken, async (req, res) => {
+  try {
+    const { teacherId } = req.params;
+
+    const [users] = await pool.execute(
+      `SELECT DISTINCT
+        u.id,
+        u.email,
+        u.firstName,
+        u.lastName,
+        u.role
+       FROM users u
+       WHERE (
+         u.role = 'admin'
+         OR u.role = 'teacher'
+         OR (
+           u.role = 'student'
+           AND EXISTS (
+             SELECT 1 FROM classes c
+             WHERE c.teacherId = ? AND EXISTS (
+               SELECT 1 FROM attendances a
+               WHERE a.classId = c.id AND a.studentId = u.id
+             )
+           )
+         )
+         OR (
+           u.role = 'parent'
+           AND EXISTS (
+             SELECT 1 FROM parent_children pc
+             JOIN users student ON pc.child_id = student.id
+             WHERE pc.parent_id = u.id
+             AND EXISTS (
+               SELECT 1 FROM classes c
+               WHERE c.teacherId = ? AND EXISTS (
+                 SELECT 1 FROM attendances a
+                 WHERE a.classId = c.id AND a.studentId = student.id
+               )
+             )
+           )
+         )
+       )
+       AND u.id != ?
+       ORDER BY u.role, u.lastName, u.firstName`,
+      [teacherId, teacherId, teacherId]
+    );
+
+    res.json(users);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des contacts:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 module.exports = router;

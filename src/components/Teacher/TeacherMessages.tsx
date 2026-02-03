@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Search, Send, Inbox, Send as Sent, MessageSquare, Users, Bell, Eye } from 'lucide-react';
 import { Message } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
-import { messageService, userService } from '../../services/api';
+import { messageService, teacherService } from '../../services/api';
 import LoadingSpinner from '../Common/LoadingSpinner';
 
 const TeacherMessages: React.FC = () => {
@@ -13,10 +13,18 @@ const TeacherMessages: React.FC = () => {
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [users, setUsers] = useState<any[]>([]);
+  const [composeForm, setComposeForm] = useState({
+    to: '',
+    subject: '',
+    content: '',
+    recipients: 'individual' as 'individual' | 'class' | 'parents'
+  });
 
   useEffect(() => {
     if (user?.id) {
       fetchMessages();
+      fetchUsers();
     }
   }, [user?.id, activeTab]);
 
@@ -33,29 +41,19 @@ const TeacherMessages: React.FC = () => {
     }
   };
 
-  const [users, setUsers] = useState<any[]>([]);
+  const fetchUsers = async () => {
+    if (!user?.id) return;
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const usersData = await userService.getAll();
-        setUsers(usersData.users || usersData || []);
-      } catch (error) {
-        console.error('Erreur lors du chargement des utilisateurs:', error);
-      }
-    };
-    fetchUsers();
-  }, []);
+    try {
+      const usersData = await teacherService.getContacts(user.id);
+      setUsers(usersData || []);
+    } catch (error) {
+      console.error('Erreur lors du chargement des utilisateurs:', error);
+    }
+  };
 
   if (loading) return <LoadingSpinner />;
   if (error) return <div className="text-red-600">{error}</div>;
-
-  const [composeForm, setComposeForm] = useState({
-    to: '',
-    subject: '',
-    content: '',
-    recipients: 'individual' as 'individual' | 'class' | 'parents'
-  });
 
   const filteredMessages = messages.filter(message => {
     const sender = users.find(u => u.id === message.senderId);
