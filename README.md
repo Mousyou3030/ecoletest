@@ -2,6 +2,26 @@
 
 Application web complète de gestion scolaire avec backend Express + MySQL et frontend React + TypeScript.
 
+## ⚠️ Problème d'ajout de notes ?
+
+Si vous ne pouvez pas ajouter de notes (menu déroulant des élèves vide), consultez :
+- **[GUIDE_AJOUT_NOTES.md](GUIDE_AJOUT_NOTES.md)** - Guide complet avec étapes détaillées
+- **[TROUBLESHOOTING_NOTES.md](TROUBLESHOOTING_NOTES.md)** - Diagnostic et solutions
+
+**Solution rapide :**
+```bash
+# 1. Vérifier la configuration
+cd server
+npm run check
+
+# 2. Démarrer le backend
+npm start
+
+# 3. Dans un autre terminal : démarrer le frontend
+cd ..
+npm run dev
+```
+
 ## Fonctionnalités
 
 ### Pour les Administrateurs

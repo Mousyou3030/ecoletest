@@ -14,7 +14,17 @@ const GradeManagement: React.FC = () => {
   const [grades, setGrades] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingStudents, setLoadingStudents] = useState(false);
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    studentId: '',
+    value: '',
+    maxValue: '20',
+    type: 'exam',
+    date: new Date().toISOString().split('T')[0],
+    comments: ''
+  });
 
   useEffect(() => {
     if (user?.id) {
@@ -65,10 +75,24 @@ const GradeManagement: React.FC = () => {
 
   const fetchStudents = async () => {
     try {
+      setLoadingStudents(true);
       const response = await teacherService.getCourseStudents(selectedCourse);
-      setStudents(response);
-    } catch (err) {
+      console.log('Students loaded:', response);
+      setStudents(response || []);
+      if (!response || response.length === 0) {
+        console.warn('Aucun étudiant trouvé pour ce cours');
+      }
+    } catch (err: any) {
       console.error('Erreur lors du chargement des étudiants:', err);
+      console.error('Error details:', err.response?.data);
+      setStudents([]);
+      if (err.code === 'ERR_NETWORK') {
+        setError('Erreur de connexion: Assurez-vous que le serveur backend est en cours d\'exécution sur le port 5000');
+      } else {
+        setError(`Impossible de charger les étudiants: ${err.response?.data?.error || err.message}`);
+      }
+    } finally {
+      setLoadingStudents(false);
     }
   };
 
@@ -114,6 +138,59 @@ const GradeManagement: React.FC = () => {
     return (total / filteredGrades.length).toFixed(1);
   };
 
+  const handleAddGrade = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!formData.studentId || !formData.value || !formData.date) {
+      setError('Veuillez remplir tous les champs obligatoires');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setError('');
+
+      await gradeService.create({
+        studentId: formData.studentId,
+        courseId: selectedCourse,
+        value: parseFloat(formData.value),
+        maxValue: parseFloat(formData.maxValue),
+        type: formData.type,
+        date: formData.date,
+        comments: formData.comments
+      });
+
+      setShowAddModal(false);
+      setFormData({
+        studentId: '',
+        value: '',
+        maxValue: '20',
+        type: 'exam',
+        date: new Date().toISOString().split('T')[0],
+        comments: ''
+      });
+      fetchGrades();
+    } catch (err: any) {
+      console.error('Erreur lors de l\'ajout de la note:', err);
+      setError(err.response?.data?.error || 'Erreur lors de l\'ajout de la note');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleOpenAddModal = () => {
+    setFormData({
+      studentId: '',
+      value: '',
+      maxValue: '20',
+      type: 'exam',
+      date: new Date().toISOString().split('T')[0],
+      comments: ''
+    });
+    setError('');
+    setShowAddModal(true);
+  };
+
   const AddGradeModal = () => {
     if (!selectedCourse || selectedCourse === 'all') {
       return (
@@ -138,69 +215,131 @@ const GradeManagement: React.FC = () => {
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg p-6 w-full max-w-md">
           <h3 className="text-lg font-semibold mb-4">Ajouter une note</h3>
-          <form className="space-y-4">
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleAddGrade} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Élève</label>
-              <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
-                <option value="">Sélectionner un élève</option>
-                {students && students.length > 0 ? (
-                  students.map(student => (
-                    <option key={student.id} value={student.id}>{student.name}</option>
-                  ))
-                ) : (
-                  <option disabled>Chargement des élèves...</option>
-                )}
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Élève <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={formData.studentId}
+                onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                required
+                disabled={loadingStudents}
+              >
+                <option value="">
+                  {loadingStudents
+                    ? 'Chargement des élèves...'
+                    : students.length === 0
+                      ? 'Aucun élève inscrit dans ce cours'
+                      : 'Sélectionner un élève'}
+                </option>
+                {students && students.length > 0 && students.map(student => (
+                  <option key={student.id} value={student.id}>{student.name}</option>
+                ))}
+              </select>
+              {!loadingStudents && students.length === 0 && (
+                <p className="mt-1 text-sm text-amber-600">
+                  Aucun élève n'est inscrit dans la classe de ce cours. Veuillez d'abord ajouter des élèves dans la section "Mes Classes".
+                </p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Note <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max={formData.maxValue}
+                  step="0.5"
+                  value={formData.value}
+                  onChange={(e) => setFormData({ ...formData, value: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Sur <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="20"
+                  value={formData.maxValue}
+                  onChange={(e) => setFormData({ ...formData, maxValue: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Type d'évaluation <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={formData.type}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                required
+              >
+                <option value="exam">Contrôle</option>
+                <option value="homework">Devoir</option>
+                <option value="participation">Participation</option>
+                <option value="project">Projet</option>
               </select>
             </div>
-          
-          <div className="grid grid-cols-2 gap-4">
+
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Note</label>
-              <input type="number" min="0" max="20" step="0.5" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Date <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                value={formData.date}
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                required
+              />
             </div>
+
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Sur</label>
-              <input type="number" min="1" max="20" defaultValue="20" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Commentaires</label>
+              <textarea
+                rows={3}
+                value={formData.comments}
+                onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Commentaires sur la performance..."
+              ></textarea>
             </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Type d'évaluation</label>
-            <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
-              <option value="exam">Contrôle</option>
-              <option value="homework">Devoir</option>
-              <option value="participation">Participation</option>
-              <option value="project">Projet</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-            <input type="date" className="w-full border border-gray-300 rounded-lg px-3 py-2" />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Commentaires</label>
-            <textarea 
-              rows={3}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2"
-              placeholder="Commentaires sur la performance..."
-            ></textarea>
-          </div>
 
             <div className="flex justify-end space-x-3 pt-4">
               <button
                 type="button"
                 onClick={() => setShowAddModal(false)}
                 className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                disabled={submitting}
               >
                 Annuler
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={submitting}
               >
-                Ajouter la note
+                {submitting ? 'Ajout en cours...' : 'Ajouter la note'}
               </button>
             </div>
           </form>
@@ -222,7 +361,7 @@ const GradeManagement: React.FC = () => {
             Exporter
           </button>
           <button
-            onClick={() => setShowAddModal(true)}
+            onClick={handleOpenAddModal}
             className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             <Plus className="h-4 w-4 mr-2" />

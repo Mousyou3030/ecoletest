@@ -29,17 +29,35 @@ Le fichier `database-schema.sql` créera automatiquement :
 
 ### 3. Variables d'environnement
 
-Créer un fichier `.env` à la racine du dossier `server` :
+Un fichier `.env` a été créé automatiquement avec des valeurs par défaut.
+
+**Modifiez uniquement la ligne `DB_PASSWORD` si nécessaire :**
 ```env
 DB_HOST=localhost
 DB_USER=root
-DB_PASSWORD=votre_mot_de_passe
+DB_PASSWORD=              # ← Ajoutez votre mot de passe MySQL ici
 DB_NAME=myschool_db
 DB_PORT=3306
 
-JWT_SECRET=votre_clé_secrète_jwt_très_longue_et_sécurisée
+JWT_SECRET=votre_secret_jwt_ici_changez_moi_en_production
+JWT_EXPIRES_IN=7d
 PORT=5000
 ```
+
+### 3.5. Vérifier la configuration (IMPORTANT)
+
+**Avant de démarrer le serveur, exécutez :**
+
+```bash
+npm run check
+```
+
+Ce script vérifie automatiquement :
+- ✅ La connexion à MySQL
+- ✅ L'existence de la base de données
+- ✅ Les tables nécessaires
+- ✅ Les données de test
+- ✅ Les inscriptions d'élèves (important pour ajouter des notes)
 
 ### 4. Démarrer le serveur
 
@@ -188,3 +206,55 @@ Toutes les tables ont des index appropriés pour optimiser les performances.
 
 ### Données de test manquantes
 - Réexécutez le fichier `database-schema.sql` pour recréer les données de test
+
+### Impossible d'ajouter des notes (menu déroulant des élèves vide)
+
+**Cause 1 : Le serveur backend n'est pas démarré**
+```bash
+cd server
+npm start
+```
+
+**Cause 2 : Aucun élève inscrit dans la classe du cours**
+
+Vérifiez avec :
+```bash
+npm run check
+```
+
+Si "Inscriptions d'élèves actives: 0", alors :
+1. Connectez-vous en tant qu'Admin sur l'interface web
+2. Allez dans "Gestion des Classes"
+3. Sélectionnez une classe
+4. Cliquez sur "Gérer les étudiants"
+5. Ajoutez des élèves à la classe
+
+Ou en SQL :
+```sql
+USE myschool_db;
+
+-- Vérifier les inscriptions
+SELECT
+    cl.name as classe,
+    CONCAT(u.firstName, ' ', u.lastName) as eleve,
+    sc.isActive
+FROM student_classes sc
+JOIN classes cl ON sc.classId = cl.id
+JOIN users u ON sc.studentId = u.id
+WHERE sc.isActive = TRUE;
+
+-- Si vide, ajouter des élèves manuellement :
+INSERT INTO student_classes (classId, studentId, isActive)
+SELECT c.id, u.id, TRUE
+FROM classes c, users u
+WHERE c.name = '6ème A' AND u.role = 'student'
+LIMIT 5;
+```
+
+**Voir aussi :** Le fichier `GUIDE_AJOUT_NOTES.md` à la racine du projet pour un guide complet.
+
+## 📋 Scripts disponibles
+
+- `npm start` - Démarre le serveur en mode production
+- `npm run dev` - Démarre avec nodemon (rechargement automatique)
+- `npm run check` - Vérifie la configuration et l'état de la base de données
