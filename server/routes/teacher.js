@@ -84,16 +84,15 @@ router.get('/classes/:teacherId/:classId/students', authenticateToken, async (re
          WHERE g.studentId = u.id AND co.classId = ?
          ORDER BY g.createdAt DESC
          LIMIT 1) as lastGrade,
-        (SELECT COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0 / COUNT(a.id)
+        (SELECT COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0 / NULLIF(COUNT(a.id), 0)
          FROM attendances a
          WHERE a.studentId = u.id AND a.classId = ?
          AND a.date >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)) as attendance
        FROM users u
+       JOIN student_classes sc ON u.id = sc.studentId
        WHERE u.role = 'student'
-       AND EXISTS (
-         SELECT 1 FROM attendances a
-         WHERE a.studentId = u.id AND a.classId = ?
-       )
+       AND sc.classId = ?
+       AND sc.isActive = TRUE
        ORDER BY u.lastName, u.firstName`,
       [classId, classId, classId]
     );
@@ -170,9 +169,9 @@ router.get('/courses/:courseId/students', authenticateToken, async (req, res) =>
         u.lastName,
         u.email
        FROM users u
-       JOIN attendances a ON u.id = a.studentId
-       JOIN courses co ON a.classId = co.classId
-       WHERE co.id = ? AND u.role = 'student'
+       JOIN student_classes sc ON u.id = sc.studentId
+       JOIN courses co ON sc.classId = co.classId
+       WHERE co.id = ? AND u.role = 'student' AND sc.isActive = TRUE
        ORDER BY u.lastName, u.firstName`,
       [courseId]
     );

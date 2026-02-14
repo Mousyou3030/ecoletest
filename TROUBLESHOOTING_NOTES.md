@@ -1,7 +1,12 @@
 # Résolution du problème d'ajout de notes
 
-## Symptôme
+## Symptômes courants
+
+### 1. Menu déroulant des élèves vide lors de l'ajout de notes
 Lorsque vous essayez d'ajouter une note dans l'interface enseignant, le menu déroulant des élèves est vide ou affiche "Aucun élève inscrit dans ce cours".
+
+### 2. Onglet "Mes Classes" affiche "Aucun élève trouvé pour cette classe"
+Dans la section "Mes Classes" de l'interface enseignant, le tableau affiche "Aucun élève inscrit dans cette classe" et le compteur montre "Élèves: 0".
 
 ## Causes possibles et solutions
 
@@ -48,12 +53,17 @@ DB_PASSWORD=votre_mot_de_passe_mysql
 
 ### 3. Aucun élève inscrit dans la classe du cours
 
+**Cause :**
+Les élèves doivent être explicitement inscrits dans une classe via la table `student_classes`. Cette inscription est indépendante des présences ou des notes.
+
 **Solution :**
-Avant d'ajouter des notes, vous devez d'abord :
+Avant d'ajouter des notes ou de voir les élèves, vous devez d'abord :
 
 1. **Créer une classe** (section Admin > Gestion des Classes)
-2. **Ajouter des élèves à la classe** (section Admin > Gestion des Classes > Étudiants)
+2. **Ajouter des élèves à la classe** (section Admin > Gestion des Classes > Gérer les étudiants)
 3. **Créer un cours lié à cette classe** (section Admin > Gestion des Cours)
+
+**Important :** Les corrections apportées garantissent maintenant que tous les élèves inscrits dans `student_classes` apparaîtront, même s'ils n'ont pas encore de présences ou de notes enregistrées.
 
 **Vérification rapide :**
 ```sql

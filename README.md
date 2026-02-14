@@ -2,11 +2,14 @@
 
 Application web complète de gestion scolaire avec backend Express + MySQL et frontend React + TypeScript.
 
-## ⚠️ Problème d'ajout de notes ?
+## ⚠️ Problèmes courants et solutions
 
-Si vous ne pouvez pas ajouter de notes (menu déroulant des élèves vide), consultez :
-- **[GUIDE_AJOUT_NOTES.md](GUIDE_AJOUT_NOTES.md)** - Guide complet avec étapes détaillées
-- **[TROUBLESHOOTING_NOTES.md](TROUBLESHOOTING_NOTES.md)** - Diagnostic et solutions
+### Les élèves ne s'affichent pas ?
+
+Si les élèves n'apparaissent pas dans "Mes Classes" ou lors de l'ajout de notes :
+- **[FIX_STUDENTS_DISPLAY.md](FIX_STUDENTS_DISPLAY.md)** - Correction appliquée et explication technique
+- **[GUIDE_AJOUT_NOTES.md](GUIDE_AJOUT_NOTES.md)** - Guide pour ajouter des notes
+- **[TROUBLESHOOTING_NOTES.md](TROUBLESHOOTING_NOTES.md)** - Diagnostic complet
 
 **Solution rapide :**
 ```bash
@@ -14,10 +17,13 @@ Si vous ne pouvez pas ajouter de notes (menu déroulant des élèves vide), cons
 cd server
 npm run check
 
-# 2. Démarrer le backend
+# 2. Si "Inscriptions d'élèves actives: 0", ajouter des élèves via Admin
+# Interface Web → Admin → Gestion des Classes → Gérer les étudiants
+
+# 3. Démarrer le backend
 npm start
 
-# 3. Dans un autre terminal : démarrer le frontend
+# 4. Dans un autre terminal : démarrer le frontend
 cd ..
 npm run dev
 ```

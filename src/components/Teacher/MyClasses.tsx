@@ -44,10 +44,19 @@ const MyClasses: React.FC = () => {
   const fetchStudents = async () => {
     try {
       setLoadingStudents(true);
+      setError('');
       const data = await teacherService.getStudentsByClass(user!.id, selectedClass);
-      setStudents(data);
-    } catch (err) {
+      console.log('Students loaded for class:', selectedClass, data);
+      setStudents(data || []);
+    } catch (err: any) {
       console.error('Erreur lors du chargement des élèves:', err);
+      console.error('Error details:', err.response?.data);
+      if (err.code === 'ERR_NETWORK') {
+        setError('Erreur de connexion: Assurez-vous que le serveur backend est en cours d\'exécution');
+      } else {
+        setError(`Erreur: ${err.response?.data?.error || err.message}`);
+      }
+      setStudents([]);
     } finally {
       setLoadingStudents(false);
     }
@@ -201,6 +210,12 @@ const MyClasses: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {error && (
+              <div className="p-4 bg-red-50 border-b border-red-200">
+                <p className="text-red-800">{error}</p>
+              </div>
+            )}
             
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -232,8 +247,19 @@ const MyClasses: React.FC = () => {
                     </tr>
                   ) : students.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                        Aucun élève trouvé pour cette classe
+                      <td colSpan={5} className="px-6 py-12 text-center">
+                        <div className="flex flex-col items-center justify-center space-y-3">
+                          <Users className="h-12 w-12 text-gray-400" />
+                          <div>
+                            <p className="text-gray-700 font-medium">Aucun élève inscrit dans cette classe</p>
+                            <p className="text-sm text-gray-500 mt-2">
+                              Les élèves doivent être ajoutés à la classe par l'administrateur
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              Section Admin → Gestion des Classes → Gérer les étudiants
+                            </p>
+                          </div>
+                        </div>
                       </td>
                     </tr>
                   ) : (
