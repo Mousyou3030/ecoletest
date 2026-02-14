@@ -255,8 +255,10 @@ router.get('/grades/:teacherId', authenticateToken, async (req, res) => {
        JOIN users u ON g.studentId = u.id
        JOIN courses co ON g.courseId = co.id
        LEFT JOIN classes cl ON co.classId = cl.id
+       JOIN student_classes sc ON u.id = sc.studentId AND cl.id = sc.classId
        WHERE co.teacherId = ?
        AND u.role = 'student'
+       AND sc.isActive = TRUE
     `;
     const params = [teacherId];
 
