@@ -62,8 +62,15 @@ router.post('/', authenticateToken, requireRole(['admin']), [
 
     const { studentId, amount, type, dueDate, description, status, method, paidDate } = req.body;
 
+    const convertToMySQLDate = (date) => {
+      if (!date) return null;
+      const d = new Date(date);
+      return d.toISOString().slice(0, 19).replace('T', ' ');
+    };
+
+    const finalDueDate = convertToMySQLDate(dueDate);
     const finalPaidDate = status === 'paid'
-      ? (paidDate || new Date().toISOString().slice(0, 19).replace('T', ' '))
+      ? convertToMySQLDate(paidDate || new Date())
       : null;
 
     const [result] = await pool.execute(
@@ -73,7 +80,7 @@ router.post('/', authenticateToken, requireRole(['admin']), [
         studentId,
         amount,
         type,
-        dueDate,
+        finalDueDate,
         description || null,
         status || 'pending',
         method || null,
@@ -97,6 +104,12 @@ router.put('/:id', authenticateToken, requireRole(['admin']), async (req, res) =
     const { id } = req.params;
     const { status, paidDate, method } = req.body;
 
+    const convertToMySQLDate = (date) => {
+      if (!date) return null;
+      const d = new Date(date);
+      return d.toISOString().slice(0, 19).replace('T', ' ');
+    };
+
     let updateFields = [];
     let params = [];
 
@@ -106,12 +119,12 @@ router.put('/:id', authenticateToken, requireRole(['admin']), async (req, res) =
 
       if (status === 'paid' && !paidDate) {
         updateFields.push('paidDate = ?');
-        params.push(new Date().toISOString().slice(0, 19).replace('T', ' '));
+        params.push(convertToMySQLDate(new Date()));
       }
     }
     if (paidDate) {
       updateFields.push('paidDate = ?');
-      params.push(paidDate);
+      params.push(convertToMySQLDate(paidDate));
     }
     if (method) {
       updateFields.push('method = ?');

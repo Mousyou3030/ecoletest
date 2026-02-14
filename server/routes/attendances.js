@@ -3,6 +3,12 @@ const router = express.Router();
 const { pool } = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
 
+const convertToMySQLDate = (date) => {
+  if (!date) return null;
+  const d = new Date(date);
+  return d.toISOString().slice(0, 10);
+};
+
 // Récupérer toutes les présences avec filtres
 router.get('/', authenticateToken, async (req, res) => {
   try {
@@ -124,10 +130,12 @@ router.post('/', authenticateToken, async (req, res) => {
       });
     }
 
+    const formattedDate = convertToMySQLDate(date);
+
     // Vérifier si une présence existe déjà
     const [existing] = await pool.execute(
       'SELECT id FROM attendances WHERE studentId = ? AND date = ? AND classId = ?',
-      [studentId, date, classId]
+      [studentId, formattedDate, classId]
     );
 
     if (existing.length > 0) {
@@ -140,19 +148,19 @@ router.post('/', authenticateToken, async (req, res) => {
       res.json({
         success: true,
         message: 'Présence mise à jour avec succès',
-        data: { id: existing[0].id, studentId, date, status, notes }
+        data: { id: existing[0].id, studentId, date: formattedDate, status, notes }
       });
     } else {
       // Créer
       const [result] = await pool.execute(
         'INSERT INTO attendances (studentId, classId, date, status, notes, markedBy) VALUES (?, ?, ?, ?, ?, ?)',
-        [studentId, classId || null, date, status, notes || null, req.user.id]
+        [studentId, classId || null, formattedDate, status, notes || null, req.user.id]
       );
 
       res.status(201).json({
         success: true,
         message: 'Présence créée avec succès',
-        data: { id: result.insertId, studentId, classId, date, status, notes }
+        data: { id: result.insertId, studentId, classId, date: formattedDate, status, notes }
       });
     }
   } catch (error) {
@@ -244,6 +252,7 @@ router.post('/bulk', authenticateToken, async (req, res) => {
       });
     }
 
+    const formattedDate = convertToMySQLDate(date);
     const connection = await pool.getConnection();
 
     try {
@@ -255,7 +264,7 @@ router.post('/bulk', authenticateToken, async (req, res) => {
         // Vérifier si existe déjà
         const [existing] = await connection.execute(
           'SELECT id FROM attendances WHERE studentId = ? AND date = ? AND classId = ?',
-          [studentId, date, classId]
+          [studentId, formattedDate, classId]
         );
 
         if (existing.length > 0) {
@@ -266,7 +275,7 @@ router.post('/bulk', authenticateToken, async (req, res) => {
         } else {
           await connection.execute(
             'INSERT INTO attendances (studentId, classId, date, status, notes, markedBy) VALUES (?, ?, ?, ?, ?, ?)',
-            [studentId, classId, date, status, notes || null, req.user.id]
+            [studentId, classId, formattedDate, status, notes || null, req.user.id]
           );
         }
       }

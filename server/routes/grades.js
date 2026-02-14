@@ -79,10 +79,16 @@ router.post('/', authenticateToken, requireRole(['admin', 'teacher']), [
     const { studentId, courseId, value, maxValue, type, date, comments } = req.body;
     const teacherId = req.user.id;
 
+    const convertToMySQLDate = (date) => {
+      if (!date) return null;
+      const d = new Date(date);
+      return d.toISOString().slice(0, 19).replace('T', ' ');
+    };
+
     const [result] = await pool.execute(
       `INSERT INTO grades (\`id\`, \`studentId\`, \`courseId\`, \`teacherId\`, \`value\`, \`maxValue\`, \`type\`, \`date\`, \`comments\`)
        VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [studentId, courseId, teacherId, value, maxValue, type, date, comments || null]
+      [studentId, courseId, teacherId, value, maxValue, type, convertToMySQLDate(date), comments || null]
     );
 
     res.status(201).json({
@@ -101,6 +107,12 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'teacher']), async (
     const { id } = req.params;
     const { value, maxValue, type, date, comments } = req.body;
 
+    const convertToMySQLDate = (date) => {
+      if (!date) return null;
+      const d = new Date(date);
+      return d.toISOString().slice(0, 19).replace('T', ' ');
+    };
+
     let updateFields = [];
     let params = [];
 
@@ -118,7 +130,7 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'teacher']), async (
     }
     if (date) {
       updateFields.push('`date` = ?');
-      params.push(date);
+      params.push(convertToMySQLDate(date));
     }
     if (comments !== undefined) {
       updateFields.push('`comments` = ?');
