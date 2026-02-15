@@ -45,7 +45,8 @@ const ParentFinances: React.FC = () => {
 
       const childIds = childrenResponse.data.map((c: Child) => c.id);
       const paymentsPromises = childIds.map((childId: string) =>
-        axios.get(`${API_BASE_URL}/payments/student/${childId}`, {
+        axios.get(`${API_BASE_URL}/payments`, {
+          params: { studentId: childId },
           headers: { Authorization: `Bearer ${token}` }
         }).catch(() => ({ data: [] }))
       );

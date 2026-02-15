@@ -358,6 +358,11 @@ export const teacherService = {
     return response.data;
   },
 
+  getGrades: async (teacherId: string, params?: any) => {
+    const response = await api.get(`/teacher/grades/${teacherId}`, { params });
+    return response.data;
+  },
+
   getStudentsByClass: async (teacherId: string, classId: string) => {
     const response = await api.get(`/teacher/classes/${teacherId}/${classId}/students`);
     return response.data;

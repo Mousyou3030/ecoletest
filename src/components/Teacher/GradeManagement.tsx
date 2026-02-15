@@ -63,7 +63,7 @@ const GradeManagement: React.FC = () => {
       if (selectedCourse && selectedCourse !== 'all') {
         params.courseId = selectedCourse;
       }
-      const data = await gradeService.getAll(params);
+      const data = await teacherService.getGrades(user!.id, params);
       setGrades(data);
     } catch (err) {
       console.error('Erreur lors du chargement des notes:', err);
