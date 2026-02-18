@@ -46,9 +46,10 @@ const ChildrenGrades: React.FC = () => {
 
       const childIds = childrenResponse.data.map((c: Child) => c.id);
       const gradesPromises = childIds.map((childId: string) =>
-        axios.get(`${API_BASE_URL}/grades/student/${childId}`, {
+        axios.get(`${API_BASE_URL}/grades`, {
+          params: { studentId: childId },
           headers: { Authorization: `Bearer ${token}` }
-        })
+        }).catch(() => ({ data: [] }))
       );
 
       const gradesResponses = await Promise.all(gradesPromises);

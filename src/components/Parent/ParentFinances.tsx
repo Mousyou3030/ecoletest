@@ -69,10 +69,10 @@ const ParentFinances: React.FC = () => {
   };
 
   const calculateStats = () => {
-    const total = payments.reduce((sum, p) => sum + p.amount, 0);
-    const paid = payments.filter(p => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0);
-    const pending = payments.filter(p => p.status === 'pending').reduce((sum, p) => sum + p.amount, 0);
-    const overdue = payments.filter(p => p.status === 'overdue').reduce((sum, p) => sum + p.amount, 0);
+    const total = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    const paid = payments.filter(p => p.status === 'paid').reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    const pending = payments.filter(p => p.status === 'pending').reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    const overdue = payments.filter(p => p.status === 'overdue').reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
     return { total, paid, pending, overdue };
   };
 
