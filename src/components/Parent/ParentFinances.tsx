@@ -213,7 +213,7 @@ const ParentFinances: React.FC = () => {
                             {payment.description}
                           </td>
                           <td className="py-3 px-4 text-right font-semibold text-gray-900">
-                            {payment.amount.toFixed(2)} €
+                            {Number(payment.amount).toFixed(2)} €
                           </td>
                           <td className="py-3 px-4 text-gray-700">
                             {new Date(payment.dueDate).toLocaleDateString('fr-FR')}
